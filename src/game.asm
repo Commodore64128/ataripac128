@@ -76,6 +76,7 @@ DIR_LEFT	= $04
 CHARS_SRC	= $60
 CHARS_DEST 	= $62
 
+; addresses around player to determine movement
 PLAYER_SCRN = $60
 
 
@@ -103,8 +104,6 @@ main:
 	; set starting player screen char address ($0692)
 	; it is set as one less than where player sprite is
 	; so we can look behind and 2 ahead
-	; we also store the location 'above', current minus 39 locations
-	; in PLAYER_SCRN+3 and +4.
 	lda #$92
 	sta PLAYER_SCRN
 	lda #$06
@@ -157,8 +156,10 @@ player_y:
 	.byte $b0
 player_direction:
 	.byte DIR_STOPPED
-player_move_bytes:
+sprite_move_lr_bytes:
 	.byte $08
+sprite_move_ud_bytes:
+	.byte $0a
 joy_cache:
 	.byte $00
 
@@ -525,14 +526,18 @@ player_move_right:
 	beq player_move_right_yes
 	cmp #$7c
 	beq player_move_right_yes
+	cmp #$6f
+	beq player_move_right_yes
+	cmp #$77
+	beq player_move_right_yes
 	rts								; nope - exit
 
 	; we can move. update the screen matrix address if we have moved to another cell
 player_move_right_yes:
-	dec player_move_bytes			; decrease the 8 counter by 1
+	dec sprite_move_lr_bytes		; decrease the 8 counter by 1
 	bne player_move_right_sprite	; if its not zero, jump ahead
 	lda #$08						; else reset it to 8
-	sta player_move_bytes
+	sta sprite_move_lr_bytes
 	inc PLAYER_SCRN					; ...increase the low byte of the screen matrix address
 	bne +							; ...if the low byte did not wrap around to zero, jump ahead
 	inc PLAYER_SCRN+1				; ...else increase the high byte of the screen matrix address
@@ -576,14 +581,18 @@ player_move_left:
 	beq player_move_left_yes
 	cmp #$7c
 	beq player_move_left_yes
+	cmp #$6f
+	beq player_move_left_yes
+	cmp #$77
+	beq player_move_left_yes
 	rts								; nope - exit
 
 	; we can move. update the screen matrix address if we have moved to another cell
 player_move_left_yes:
-	dec player_move_bytes			; decrease the 8 counter by 1
+	dec sprite_move_lr_bytes			; decrease the 8 counter by 1
 	bne player_move_left_sprite		; if its not zero, jump ahead
 	lda #$08						; else reset it to 8
-	sta player_move_bytes
+	sta sprite_move_lr_bytes
 	dec PLAYER_SCRN					; ...increase the low byte of the screen matrix address
 	bne +							; ...if the low byte did not wrap around to zero, jump ahead
 	dec PLAYER_SCRN+1				; ...else increase the high byte of the screen matrix address
@@ -615,8 +624,8 @@ player_move_left_sprite
 player_move_up:
 ; ====================================================================
 	; can we move?
-	ldy #$01						; in the irq, we are syncing the 'above' screen address
-	lda (PLAYER_SCRN+2),y 			; with the current player address
+	ldy #$01						
+	lda (PLAYER_SCRN+2),y 			
 	cmp #$20
 	beq player_move_up_yes
 	cmp #$45
@@ -631,10 +640,10 @@ player_move_up:
 
 	; we can move. update the screen matrix address if we have moved to another cell
 player_move_up_yes:
-	dec player_move_bytes			; decrease the 8 counter by 1
+	dec sprite_move_lr_bytes			; decrease the 8 counter by 1
 	bne player_move_up_sprite		; if its not zero, jump ahead
 	lda #$08						; else reset it to 8
-	sta player_move_bytes
+	sta sprite_move_lr_bytes
 
 	lda PLAYER_SCRN					; subtract 39 from player screen location
 	sec
@@ -667,7 +676,7 @@ player_move_up_sprite:
 player_move_down:
 ; ====================================================================
 	; can we move?
-	ldy #$51						; what is below the player?
+	ldy #$51;78						; what is below the player?
 	lda (PLAYER_SCRN),y
 	cmp #$20
 	beq player_move_down_yes
@@ -683,10 +692,10 @@ player_move_down:
 
 	; we can move. update the screen matrix address if we have moved to another cell
 player_move_down_yes
-	dec player_move_bytes			; decrease the 8 counter by 1
+	dec sprite_move_ud_bytes		; decrease the counter by 1
 	bne player_move_down_sprite		; if its not zero, jump ahead
-	lda #$08						; else reset it to 8
-	sta player_move_bytes
+	lda #$0a						; else reset it to 10
+	sta sprite_move_lr_bytes
 
 	lda PLAYER_SCRN					; subtract 39 from player screen location
 	clc
@@ -709,10 +718,7 @@ player_move_down_yes
 
 player_move_down_sprite:
 	; move the sprite
-	clc 
-	lda SPRITE_0_Y_POSITION
-	adc #$01
-	sta SPRITE_0_Y_POSITION
+	inc SPRITE_0_Y_POSITION
 	rts
 
 
