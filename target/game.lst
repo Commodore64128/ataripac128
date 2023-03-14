@@ -1,7 +1,7 @@
 
 ; 64tass Turbo Assembler Macro V1.53.1515 listing file
 ; 64tass -a -l ./target/game.lbl -L ./target/game.lst -o ./target/game ./src/game.asm
-; Sat Mar 11 16:41:12 2023
+; Tue Mar 14 00:38:35 2023
 
 ;Offset	;Hex		;Monitor	;Source
 
@@ -69,172 +69,176 @@
 =$04					DIR_LEFT	= $04
 =$60					CHARS_SRC	= $60
 =$62					CHARS_DEST 	= $62
+=$60					PLAYER_SCRN = $60
 =$03					SPRITE_0_FRAME_COUNT	= $03
 >1c01	1c 1c 0a 00 9e 20 37 31			.byte $1c, $1c, $0A, $00, $9E, $20, $37, $31, $38, $32
 >1c09	38 32
 >1c0b	00 00 00			    .byte $00, $00, $00
 .1c0e					main:
-.1c0e	a9 00		lda #$00		lda #$00
-.1c10	8d 00 ff	sta $ff00		sta MMUCR				; bank 15
-.1c13	20 45 1c	jsr $1c45		jsr screen_init
-.1c16	20 05 1d	jsr $1d05		jsr chars_init
-.1c19	20 ae 1c	jsr $1cae		jsr sprite_init
-.1c1c	20 a1 1c	jsr $1ca1		jsr irq_init
-.1c1f					main_loop:
-.1c1f	ad 1f d0	lda $d01f		lda VIC_SPR_FG_COL_REG
-.1c22	8d 3f 1c	sta $1c3f		sta collision_flg
-.1c25	ad 00 dc	lda $dc00		lda IO_PORT_DATA_REG_A
-.1c28	8d 44 1c	sta $1c44		sta joy_cache
-.1c2b	20 fe 1d	jsr $1dfe		jsr joystick_handler
-.1c2e					main_collision_check:
-.1c2e	ad 3f 1c	lda $1c3f		lda collision_flg
-.1c31	4a		lsr a			lsr a ;Sprite 0 crash into background
-.1c32	b0 03		bcs $1c37	    bcs collide
-.1c34					main_loop_end:
-.1c34	4c 1f 1c	jmp $1c1f		jmp main_loop
-.1c37					collide:
-.1c37	4c 1f 1c	jmp $1c1f		jmp main_loop
-.1c3a					delay_game:
->1c3a	ff					.byte $ff
-.1c3b					delay_pp:
->1c3b	ff					.byte $ff
-.1c3c					delay_plyr_anim:
->1c3c	ff					.byte $ff
-.1c3d					delay_plyr_move:
->1c3d	ff					.byte $ff
-.1c3e					sprite_0_fr_count:
->1c3e	03					.byte SPRITE_0_FRAME_COUNT
-.1c3f					collision_flg:
->1c3f	00					.byte $00
-.1c40					player_x:
->1c40	00 b0					.byte $00, $b0
-.1c42					player_y:
->1c42	b0					.byte $b0
-.1c43					player_direction:
->1c43	03					.byte DIR_RIGHT
-.1c44					joy_cache:
->1c44	00					.byte $00
-.1c45					screen_init:
-.1c45	a9 ff		lda #$ff		lda #$ff
-.1c47	85 d8		sta $d8			sta $d8
-.1c49	a9 01		lda #$01		lda #$01
-.1c4b	8d fd 12	sta $12fd		sta BASIC_IRQ_FLAG
-.1c4e	ad 00 dd	lda $dd00		lda CIA2_PORT_REG_A
-.1c51	29 fc		and #$fc		and #%11111100
-.1c53	09 03		ora #$03		ora #%00000011	; last two bits determine bank
-.1c55	a9 1c		lda #$1c		lda #$1c
-.1c57	8d 18 d0	sta $d018		sta VIC_SCREEN_BASE_REG
-.1c5a	a9 00		lda #$00		lda #BLACK
-.1c5c	8d 20 d0	sta $d020		sta VIC_BORDER_COLOR
-.1c5f	a9 06		lda #$06		lda #BLUE
-.1c61	8d 21 d0	sta $d021		sta VIC_BACKGROUND_COLOR
-.1c64	a9 71		lda #$71		lda #<scr_data
-.1c66	a2 26		ldx #$26		ldx #>scr_data
-.1c68	85 64		sta $64			sta $64
-.1c6a	86 65		stx $65			stx $65
-.1c6c	a9 00		lda #$00		lda #<SCREEN_RAM
-.1c6e	a2 04		ldx #$04		ldx #>SCREEN_RAM
-.1c70	85 66		sta $66			sta $66
-.1c72	86 67		stx $67			stx $67
-.1c74	a9 59		lda #$59		lda #<scr_color
-.1c76	a2 2a		ldx #$2a		ldx #>scr_color
-.1c78	85 62		sta $62			sta $62
-.1c7a	86 63		stx $63			stx $63
-.1c7c	a9 00		lda #$00		lda #<COLOR_RAM
-.1c7e	a2 d8		ldx #$d8		ldx #>COLOR_RAM
-.1c80	85 60		sta $60			sta $60
-.1c82	86 61		stx $61			stx $61
-.1c84	a2 00		ldx #$00		ldx #$00
-.1c86					screen_l0:
-.1c86	a0 00		ldy #$00		ldy #$00
-.1c88	b1 64		lda ($64),y	-	lda ($64),y
-.1c8a	91 66		sta ($66),y		sta ($66),y
-.1c8c	b1 62		lda ($62),y		lda ($62),y
-.1c8e	91 60		sta ($60),y		sta ($60),y
-.1c90	c8		iny			iny
-.1c91	d0 f5		bne $1c88		bne -
-.1c93	e6 67		inc $67			inc $67
-.1c95	e6 61		inc $61			inc $61
-.1c97	e6 65		inc $65			inc $65
-.1c99	e6 63		inc $63			inc $63
-.1c9b	e8		inx			inx
-.1c9c	e0 04		cpx #$04		cpx #$04
-.1c9e	d0 e6		bne $1c86		bne screen_l0
-.1ca0	60		rts			rts
-.1ca1					irq_init:
-.1ca1	78		sei			sei
-.1ca2	a9 1d		lda #$1d		lda #>irq_handler
-.1ca4	8d 15 03	sta $0315		sta $315
-.1ca7	a9 46		lda #$46		lda #<irq_handler
-.1ca9	8d 14 03	sta $0314		sta $314
-.1cac	58		cli			cli
-.1cad	60		rts			rts
-.1cae					sprite_init:
-.1cae	a9 00		lda #$00		lda #$00
-.1cb0	8d 00 ff	sta $ff00		sta MMUCR				; bank 15
-.1cb3	a9 38		lda #$38	  	lda #56					; use default spr 0 pointer location (56x64=3584=$0e00)
-.1cb5	8d f8 07	sta $07f8	  	sta SPRITE_0_POINTER
-.1cb8	a9 01		lda #$01		lda #$01              	; enable...Sprite 0 => %0000 0001 (all sprites off except Sprite 0)
-.1cba	8d 15 d0	sta $d015	  	sta SPRITE_ENBL
-.1cbd	a9 07		lda #$07		lda #YELLOW				; set sprite 0 foreground color
-.1cbf	8d 27 d0	sta $d027	  	sta SPRITE_0_COLOR
-.1cc2	a2 00		ldx #$00		ldx #$00
-.1cc4	bd 41 2e	lda $2e41,x	-	lda pacman_r_fr1, x
-.1cc7	9d 00 0e	sta $0e00,x		sta SPRITE_0_DATA,x
-.1cca	e8		inx			inx
-.1ccb	e0 3f		cpx #$3f		cpx #$3F
-.1ccd	d0 f5		bne $1cc4		bne -
-.1ccf	a2 00		ldx #$00		ldx #$00
-.1cd1	bd 81 2e	lda $2e81,x	-	lda pacman_r_fr2, x
-.1cd4	9d 40 0e	sta $0e40,x		sta SPRITE_1_DATA,x
-.1cd7	e8		inx			inx
-.1cd8	e0 3f		cpx #$3f		cpx #$3F
-.1cda	d0 f5		bne $1cd1		bne -
-.1cdc	a2 00		ldx #$00		ldx #$00
-.1cde	bd c1 2e	lda $2ec1,x	-	lda pacman_r_fr3, x
-.1ce1	9d 80 0e	sta $0e80,x		sta SPRITE_2_DATA,x
-.1ce4	e8		inx			inx
-.1ce5	e0 3f		cpx #$3f		cpx #$3F
-.1ce7	d0 f5		bne $1cde		bne -
-.1ce9	ad 40 1c	lda $1c40		lda player_x
-.1cec	8d 10 d0	sta $d010		sta SPRITE_XMSB
-.1cef	ad 41 1c	lda $1c41		lda player_x+1
-.1cf2	8d 00 d0	sta $d000		sta SPRITE_0_X_POSITION
-.1cf5	ad 42 1c	lda $1c42		lda player_y
-.1cf8	8d 01 d0	sta $d001		sta SPRITE_0_Y_POSITION
-.1cfb	60		rts			rts
-.1cfc					movement_r0:
->1cfc	23 02 03 02				.byte $23, 2, DIR_RIGHT, DIR_DOWN
-.1d00					pacman_dir:
->1d00	00					.byte $00	; 0-stopped, 1-up, 2-down, 3-right, 4-left
-.1d01					ghost1_dir:
->1d01	00					.byte $00
-.1d02					ghost2_dir:
->1d02	00					.byte $00
-.1d03					ghost3_dir:
->1d03	00					.byte $00
-.1d04					ghost4_dir:
->1d04	00					.byte $00
-.1d05					chars_init:
-.1d05	78		sei			sei					; best to disable interrupts
-.1d06	a9 00		lda #$00		lda #$00  			; bank 15
-.1d08	8d 00 ff	sta $ff00	    sta MMUCR			; allows access to VIC chip
-.1d0b	a9 1c		lda #$1c		lda #$1c
-.1d0d	8d 18 d0	sta $d018		sta VIC_SCREEN_BASE_REG
-.1d10	a9 ff		lda #$ff		lda #$ff
-.1d12	85 d8		sta $d8			sta $d8
-.1d14	a9 01		lda #$01		lda #$01
-.1d16	8d fd 12	sta $12fd		sta BASIC_IRQ_FLAG
-.1d19	a9 30		lda #$30		lda #>$3000     		; move chars to $3000
-.1d1b	85 63		sta $63			sta CHARS_DEST+1
-.1d1d	a9 1e		lda #$1e		lda #>char_data     	; from $d800 for rom (or start of cust char set) (lower-case)
-.1d1f	85 61		sta $61			sta CHARS_SRC+1
-.1d21	a0 71		ldy #$71		ldy #<char_data
-.1d23	84 60		sty $60			sty CHARS_SRC
-.1d25	a0 00		ldy #$00		ldy #$00
-.1d27	84 62		sty $62			sty CHARS_DEST
-.1d29	a9 01		lda #$01		lda #$01  			; bank 14
-.1d2b	8d 00 ff	sta $ff00	    sta MMUCR			; allow access to char rom @ $d800
+.1c0e	a9 3e		lda #$3e		lda #$3e
+.1c10	8d 00 ff	sta $ff00		sta MMUCR				; All RAM1 with IO block
+.1c13	20 54 1c	jsr $1c54		jsr screen_init
+.1c16	20 0f 1d	jsr $1d0f		jsr chars_init
+.1c19	20 bd 1c	jsr $1cbd		jsr sprite_init
+.1c1c	20 b0 1c	jsr $1cb0		jsr irq_init
+.1c1f	a9 92		lda #$92		lda #$92
+.1c21	85 60		sta $60			sta PLAYER_SCRN
+.1c23	a9 06		lda #$06		lda #$06
+.1c25	85 61		sta $61			sta PLAYER_SCRN+1
+.1c27	85 63		sta $63			sta PLAYER_SCRN+3
+.1c29	a9 6b		lda #$6b		lda #$6B
+.1c2b	85 62		sta $62			sta PLAYER_SCRN+2
+.1c2d					main_loop:
+.1c2d	ad 1f d0	lda $d01f		lda VIC_SPR_FG_COL_REG
+.1c30	8d 4d 1c	sta $1c4d		sta collision_flg
+.1c33	ad 00 dc	lda $dc00		lda IO_PORT_DATA_REG_A
+.1c36	8d 53 1c	sta $1c53		sta joy_cache
+.1c39	20 ee 1d	jsr $1dee		jsr joystick_handler
+.1c3c					main_collision_check:
+.1c3c	ad 4d 1c	lda $1c4d		lda collision_flg
+.1c3f	4a		lsr a			lsr a ;Sprite 0 crash into background
+.1c40	b0 03		bcs $1c45	    bcs collide
+.1c42					main_loop_end:
+.1c42	4c 2d 1c	jmp $1c2d		jmp main_loop
+.1c45					collide:
+.1c45	4c 2d 1c	jmp $1c2d		jmp main_loop
+.1c48					delay_game:
+>1c48	ff					.byte $ff
+.1c49					delay_pp:
+>1c49	ff					.byte $ff
+.1c4a					delay_plyr_anim:
+>1c4a	ff					.byte $ff
+.1c4b					delay_plyr_move:
+>1c4b	ff					.byte $ff
+.1c4c					sprite_0_fr_count:
+>1c4c	03					.byte SPRITE_0_FRAME_COUNT
+.1c4d					collision_flg:
+>1c4d	00					.byte $00
+.1c4e					player_x:
+>1c4e	00 b0					.byte $00, $b0
+.1c50					player_y:
+>1c50	b0					.byte $b0
+.1c51					player_direction:
+>1c51	00					.byte DIR_STOPPED
+.1c52					player_move_bytes:
+>1c52	08					.byte $08
+.1c53					joy_cache:
+>1c53	00					.byte $00
+.1c54					screen_init:
+.1c54	a9 ff		lda #$ff		lda #$ff
+.1c56	85 d8		sta $d8			sta $d8
+.1c58	a9 01		lda #$01		lda #$01
+.1c5a	8d fd 12	sta $12fd		sta BASIC_IRQ_FLAG
+.1c5d	ad 00 dd	lda $dd00		lda CIA2_PORT_REG_A
+.1c60	29 fc		and #$fc		and #%11111100
+.1c62	09 03		ora #$03		ora #%00000011	; last two bits determine bank
+.1c64	a9 1c		lda #$1c		lda #$1c
+.1c66	8d 18 d0	sta $d018		sta VIC_SCREEN_BASE_REG
+.1c69	a9 00		lda #$00		lda #BLACK
+.1c6b	8d 20 d0	sta $d020		sta VIC_BORDER_COLOR
+.1c6e	a9 06		lda #$06		lda #BLUE
+.1c70	8d 21 d0	sta $d021		sta VIC_BACKGROUND_COLOR
+.1c73	a9 00		lda #$00		lda #<scr_data
+.1c75	a2 40		ldx #$40		ldx #>scr_data
+.1c77	85 64		sta $64			sta $64
+.1c79	86 65		stx $65			stx $65
+.1c7b	a9 00		lda #$00		lda #<SCREEN_RAM
+.1c7d	a2 04		ldx #$04		ldx #>SCREEN_RAM
+.1c7f	85 66		sta $66			sta $66
+.1c81	86 67		stx $67			stx $67
+.1c83	a9 e8		lda #$e8		lda #<scr_color
+.1c85	a2 43		ldx #$43		ldx #>scr_color
+.1c87	85 62		sta $62			sta $62
+.1c89	86 63		stx $63			stx $63
+.1c8b	a9 00		lda #$00		lda #<COLOR_RAM
+.1c8d	a2 d8		ldx #$d8		ldx #>COLOR_RAM
+.1c8f	85 60		sta $60			sta $60
+.1c91	86 61		stx $61			stx $61
+.1c93	a2 00		ldx #$00		ldx #$00
+.1c95					screen_l0:
+.1c95	a0 00		ldy #$00		ldy #$00
+.1c97	b1 64		lda ($64),y	-	lda ($64),y
+.1c99	91 66		sta ($66),y		sta ($66),y
+.1c9b	b1 62		lda ($62),y		lda ($62),y
+.1c9d	91 60		sta ($60),y		sta ($60),y
+.1c9f	c8		iny			iny
+.1ca0	d0 f5		bne $1c97		bne -
+.1ca2	e6 67		inc $67			inc $67
+.1ca4	e6 61		inc $61			inc $61
+.1ca6	e6 65		inc $65			inc $65
+.1ca8	e6 63		inc $63			inc $63
+.1caa	e8		inx			inx
+.1cab	e0 04		cpx #$04		cpx #$04
+.1cad	d0 e6		bne $1c95		bne screen_l0
+.1caf	60		rts			rts
+.1cb0					irq_init:
+.1cb0	78		sei			sei
+.1cb1	a9 1d		lda #$1d		lda #>irq_handler
+.1cb3	8d 15 03	sta $0315		sta $315
+.1cb6	a9 46		lda #$46		lda #<irq_handler
+.1cb8	8d 14 03	sta $0314		sta $314
+.1cbb	58		cli			cli
+.1cbc	60		rts			rts
+.1cbd					sprite_init:
+.1cbd	a9 38		lda #$38	  	lda #56					; use default spr 0 pointer location (56x64=3584=$0e00)
+.1cbf	8d f8 07	sta $07f8	  	sta SPRITE_0_POINTER
+.1cc2	a9 01		lda #$01		lda #$01              	; enable...Sprite 0 => %0000 0001 (all sprites off except Sprite 0)
+.1cc4	8d 15 d0	sta $d015	  	sta SPRITE_ENBL
+.1cc7	a9 07		lda #$07		lda #YELLOW				; set sprite 0 foreground color
+.1cc9	8d 27 d0	sta $d027	  	sta SPRITE_0_COLOR
+.1ccc	a2 00		ldx #$00		ldx #$00
+.1cce	bd d0 47	lda $47d0,x	-	lda pacman_r_fr1, x
+.1cd1	9d 00 0e	sta $0e00,x		sta SPRITE_0_DATA,x
+.1cd4	e8		inx			inx
+.1cd5	e0 3f		cpx #$3f		cpx #$3F
+.1cd7	d0 f5		bne $1cce		bne -
+.1cd9	a2 00		ldx #$00		ldx #$00
+.1cdb	bd 10 48	lda $4810,x	-	lda pacman_r_fr2, x
+.1cde	9d 40 0e	sta $0e40,x		sta SPRITE_1_DATA,x
+.1ce1	e8		inx			inx
+.1ce2	e0 3f		cpx #$3f		cpx #$3F
+.1ce4	d0 f5		bne $1cdb		bne -
+.1ce6	a2 00		ldx #$00		ldx #$00
+.1ce8	bd 50 48	lda $4850,x	-	lda pacman_r_fr3, x
+.1ceb	9d 80 0e	sta $0e80,x		sta SPRITE_2_DATA,x
+.1cee	e8		inx			inx
+.1cef	e0 3f		cpx #$3f		cpx #$3F
+.1cf1	d0 f5		bne $1ce8		bne -
+.1cf3	ad 4e 1c	lda $1c4e		lda player_x
+.1cf6	8d 10 d0	sta $d010		sta SPRITE_XMSB
+.1cf9	ad 4f 1c	lda $1c4f		lda player_x+1
+.1cfc	8d 00 d0	sta $d000		sta SPRITE_0_X_POSITION
+.1cff	ad 50 1c	lda $1c50		lda player_y
+.1d02	8d 01 d0	sta $d001		sta SPRITE_0_Y_POSITION
+.1d05	60		rts			rts
+.1d06					movement_r0:
+>1d06	23 02 03 02				.byte $23, 2, DIR_RIGHT, DIR_DOWN
+.1d0a					pacman_dir:
+>1d0a	00					.byte $00	; 0-stopped, 1-up, 2-down, 3-right, 4-left
+.1d0b					ghost1_dir:
+>1d0b	00					.byte $00
+.1d0c					ghost2_dir:
+>1d0c	00					.byte $00
+.1d0d					ghost3_dir:
+>1d0d	00					.byte $00
+.1d0e					ghost4_dir:
+>1d0e	00					.byte $00
+.1d0f					chars_init:
+.1d0f	78		sei			sei					; best to disable interrupts
+.1d10	a9 1c		lda #$1c		lda #$1c
+.1d12	8d 18 d0	sta $d018		sta VIC_SCREEN_BASE_REG
+.1d15	a9 ff		lda #$ff		lda #$ff
+.1d17	85 d8		sta $d8			sta $d8
+.1d19	a9 01		lda #$01		lda #$01
+.1d1b	8d fd 12	sta $12fd		sta BASIC_IRQ_FLAG
+.1d1e	a9 30		lda #$30		lda #>$3000     		; move chars to $3000
+.1d20	85 63		sta $63			sta CHARS_DEST+1
+.1d22	a9 38		lda #$38		lda #>char_data     	; from $d800 for rom (or start of cust char set) (lower-case)
+.1d24	85 61		sta $61			sta CHARS_SRC+1
+.1d26	a0 00		ldy #$00		ldy #<char_data
+.1d28	84 60		sty $60			sty CHARS_SRC
+.1d2a	a0 00		ldy #$00		ldy #$00
+.1d2c	84 62		sty $62			sty CHARS_DEST
 .1d2e	a2 10		ldx #$10		ldx #$10        	; copy 2k of data.
 .1d30	b1 60		lda ($60),y	- 	lda (CHARS_SRC),y	; copy byte.
 .1d32	91 62		sta ($62),y		sta (CHARS_DEST),y
@@ -250,15 +254,15 @@
 .1d44	58		cli			cli
 .1d45	60		rts			rts             	; and return.
 .1d46					irq_handler:
-.1d46	ce 3b 1c	dec $1c3b		dec delay_pp
-.1d49	ce 3c 1c	dec $1c3c		dec delay_plyr_anim
-.1d4c	ce 3d 1c	dec $1c3d		dec delay_plyr_move
+.1d46	ce 49 1c	dec $1c49		dec delay_pp
+.1d49	ce 4a 1c	dec $1c4a		dec delay_plyr_anim
+.1d4c	ce 4b 1c	dec $1c4b		dec delay_plyr_move
 .1d4f					irq_pp_anim_check:
-.1d4f	ad 3b 1c	lda $1c3b		lda delay_pp
+.1d4f	ad 49 1c	lda $1c49		lda delay_pp
 .1d52	c9 f0		cmp #$f0		cmp #$f0
 .1d54	10 43		bpl $1d99		bpl irq_plyr_anim_check
 .1d56	a9 ff		lda #$ff		lda #$ff
-.1d58	8d 3b 1c	sta $1c3b		sta delay_pp
+.1d58	8d 49 1c	sta $1c49		sta delay_pp
 .1d5b					irq_pp_anim:
 .1d5b	ad 51 d8	lda $d851		lda COLOR_RAM + PP1_OFFSET
 .1d5e	c9 08		cmp #$08		cmp #BROWN
@@ -284,569 +288,727 @@
 .1d93	8d f5 da	sta $daf5		sta COLOR_RAM + $2cd + 40
 .1d96	8d f6 da	sta $daf6		sta COLOR_RAM + $2cd + 41
 .1d99					irq_plyr_anim_check:
-.1d99	ad 3c 1c	lda $1c3c		lda delay_plyr_anim
+.1d99	ad 4a 1c	lda $1c4a		lda delay_plyr_anim
 .1d9c	c9 f5		cmp #$f5		cmp #$f5
 .1d9e	10 1a		bpl $1dba		bpl irq_player_move_check
 .1da0	a9 ff		lda #$ff		lda #$ff
-.1da2	8d 3c 1c	sta $1c3c		sta delay_plyr_anim
+.1da2	8d 4a 1c	sta $1c4a		sta delay_plyr_anim
 .1da5					irq_player_anim:
-.1da5	ce 3e 1c	dec $1c3e		dec sprite_0_fr_count
+.1da5	ce 4c 1c	dec $1c4c		dec sprite_0_fr_count
 .1da8	d0 0d		bne $1db7		bne +
 .1daa	a9 38		lda #$38		lda #56						; reset to first anim frame
 .1dac	8d f8 07	sta $07f8		sta SPRITE_0_POINTER
 .1daf	a2 03		ldx #$03		ldx #SPRITE_0_FRAME_COUNT
-.1db1	8e 3e 1c	stx $1c3e		stx sprite_0_fr_count
-.1db4	4c fa 1d	jmp $1dfa		jmp irq_end
+.1db1	8e 4c 1c	stx $1c4c		stx sprite_0_fr_count
+.1db4	4c eb 1d	jmp $1deb		jmp irq_end
 .1db7	ee f8 07	inc $07f8	+	inc SPRITE_0_POINTER
 .1dba					irq_player_move_check:
-.1dba	ad 43 1c	lda $1c43		lda player_direction
+.1dba	ad 51 1c	lda $1c51		lda player_direction
 .1dbd	c9 01		cmp #$01		cmp #DIR_UP
-.1dbf	d0 09		bne $1dca		bne +
-.1dc1	38		sec			sec
-.1dc2	ad 01 d0	lda $d001		lda SPRITE_0_Y_POSITION
-.1dc5	e9 02		sbc #$02		sbc #$02
-.1dc7	8d 01 d0	sta $d001		sta SPRITE_0_Y_POSITION
-.1dca	ad 43 1c	lda $1c43	+	lda player_direction
-.1dcd	c9 02		cmp #$02		cmp #DIR_DOWN
-.1dcf	d0 09		bne $1dda		bne +
-.1dd1	18		clc			clc
-.1dd2	ad 01 d0	lda $d001		lda SPRITE_0_Y_POSITION
-.1dd5	69 02		adc #$02		adc	#$02
-.1dd7	8d 01 d0	sta $d001		sta SPRITE_0_Y_POSITION
-.1dda	ad 43 1c	lda $1c43	+	lda player_direction
-.1ddd	c9 03		cmp #$03		cmp #DIR_RIGHT
-.1ddf	d0 09		bne $1dea		bne +
-.1de1	18		clc			clc
-.1de2	ad 00 d0	lda $d000		lda SPRITE_0_X_POSITION
-.1de5	69 02		adc #$02		adc #$02
-.1de7	8d 00 d0	sta $d000		sta SPRITE_0_X_POSITION
-.1dea	ad 43 1c	lda $1c43	+	lda player_direction
-.1ded	c9 04		cmp #$04		cmp #DIR_LEFT
-.1def	d0 09		bne $1dfa		bne +
-.1df1	38		sec			sec
-.1df2	ad 00 d0	lda $d000		lda SPRITE_0_X_POSITION
-.1df5	e9 02		sbc #$02		sbc #$02
-.1df7	8d 00 d0	sta $d000		sta SPRITE_0_X_POSITION
-.1dfa					+
-.1dfa					irq_end
-.1dfa	4c 65 fa	jmp $fa65		jmp $fa65
-.1dfd					tempmmucr:
->1dfd	00					.byte $00
-.1dfe					joystick_handler:
-.1dfe	ad 44 1c	lda $1c44		lda joy_cache
-.1e01	29 08		and #$08		and #$08
-.1e03	d0 22		bne $1e27		bne +
-.1e05	a9 03		lda #$03		lda #DIR_RIGHT
-.1e07	8d 43 1c	sta $1c43		sta player_direction
-.1e0a	a2 00		ldx #$00		ldx #$00
-.1e0c	bd 81 2e	lda $2e81,x	-	lda pacman_r_fr2, x
-.1e0f	9d 40 0e	sta $0e40,x		sta SPRITE_1_DATA,x
-.1e12	e8		inx			inx
-.1e13	e0 3f		cpx #$3f		cpx #$3F
-.1e15	d0 f5		bne $1e0c		bne -
-.1e17	a2 00		ldx #$00		ldx #$00
-.1e19	bd c1 2e	lda $2ec1,x	-	lda pacman_r_fr3, x
-.1e1c	9d 80 0e	sta $0e80,x		sta SPRITE_2_DATA,x
-.1e1f	e8		inx			inx
-.1e20	e0 3f		cpx #$3f		cpx #$3F
-.1e22	d0 f5		bne $1e19		bne -
-.1e24	4c 6b 1e	jmp $1e6b		jmp joystick_end
-.1e27	ad 44 1c	lda $1c44	+	lda joy_cache
-.1e2a	29 04		and #$04		and #$04
-.1e2c	d0 22		bne $1e50		bne +
-.1e2e	a9 04		lda #$04		lda #DIR_LEFT
-.1e30	8d 43 1c	sta $1c43		sta player_direction
-.1e33	a2 00		ldx #$00		ldx #$00
-.1e35	bd 01 2f	lda $2f01,x	-	lda pacman_l_fr1, x
-.1e38	9d 40 0e	sta $0e40,x		sta SPRITE_1_DATA,x
-.1e3b	e8		inx			inx
-.1e3c	e0 3f		cpx #$3f		cpx #$3F
-.1e3e	d0 f5		bne $1e35		bne -
-.1e40	a2 00		ldx #$00		ldx #$00
-.1e42	bd 41 2f	lda $2f41,x	-	lda pacman_l_fr2, x
-.1e45	9d 80 0e	sta $0e80,x		sta SPRITE_2_DATA,x
-.1e48	e8		inx			inx
-.1e49	e0 3f		cpx #$3f		cpx #$3F
-.1e4b	d0 f5		bne $1e42		bne -
-.1e4d	4c 6b 1e	jmp $1e6b		jmp joystick_end
-.1e50	ad 44 1c	lda $1c44	+	lda joy_cache
-.1e53	29 01		and #$01		and #$01
-.1e55	d0 08		bne $1e5f		bne +
-.1e57	a9 01		lda #$01		lda #DIR_UP
-.1e59	8d 43 1c	sta $1c43		sta player_direction
-.1e5c	4c 6b 1e	jmp $1e6b		jmp joystick_end
-.1e5f	ad 44 1c	lda $1c44	+	lda joy_cache
-.1e62	29 02		and #$02		and #$02
-.1e64	d0 05		bne $1e6b		bne joystick_end
-.1e66	a9 02		lda #$02		lda #DIR_DOWN
-.1e68	8d 43 1c	sta $1c43		sta player_direction
-.1e6b					joystick_end:
-.1e6b	a9 00		lda #$00		lda #$00
-.1e6d	8d 44 1c	sta $1c44		sta joy_cache
-.1e70	60		rts			rts
+.1dbf	d0 06		bne $1dc7		bne +
+.1dc1	20 cd 1e	jsr $1ecd		jsr player_move_up
+.1dc4	4c eb 1d	jmp $1deb		jmp irq_end
+.1dc7	ad 51 1c	lda $1c51	+	lda player_direction
+.1dca	c9 02		cmp #$02		cmp #DIR_DOWN
+.1dcc	d0 06		bne $1dd4		bne +
+.1dce	20 18 1f	jsr $1f18		jsr player_move_down
+.1dd1	4c eb 1d	jmp $1deb		jmp irq_end
+.1dd4	ad 51 1c	lda $1c51	+	lda player_direction
+.1dd7	c9 03		cmp #$03		cmp #DIR_RIGHT
+.1dd9	d0 06		bne $1de1		bne +
+.1ddb	20 33 1e	jsr $1e33		jsr player_move_right
+.1dde	4c eb 1d	jmp $1deb		jmp irq_end
+.1de1	ad 51 1c	lda $1c51	+	lda player_direction
+.1de4	c9 04		cmp #$04		cmp #DIR_LEFT
+.1de6	d0 03		bne $1deb		bne irq_end
+.1de8	20 80 1e	jsr $1e80		jsr player_move_left
+.1deb					irq_end
+.1deb	4c 65 fa	jmp $fa65		jmp $fa65
+.1dee					joystick_handler:
+.1dee	ad 53 1c	lda $1c53		lda joy_cache
+.1df1	29 08		and #$08		and #$08
+.1df3	d0 0b		bne $1e00		bne +
+.1df5	a9 03		lda #$03		lda #DIR_RIGHT
+.1df7	8d 51 1c	sta $1c51		sta player_direction
+.1dfa	20 63 1f	jsr $1f63		jsr select_player_r_anim
+.1dfd	4c 2d 1e	jmp $1e2d		jmp joystick_end
+.1e00	ad 53 1c	lda $1c53	+	lda joy_cache
+.1e03	29 04		and #$04		and #$04
+.1e05	d0 0b		bne $1e12		bne +
+.1e07	a9 04		lda #$04		lda #DIR_LEFT
+.1e09	8d 51 1c	sta $1c51		sta player_direction
+.1e0c	20 7e 1f	jsr $1f7e		jsr select_player_l_anim
+.1e0f	4c 2d 1e	jmp $1e2d		jmp joystick_end
+.1e12	ad 53 1c	lda $1c53	+	lda joy_cache
+.1e15	29 01		and #$01		and #$01
+.1e17	d0 08		bne $1e21		bne +
+.1e19	a9 01		lda #$01		lda #DIR_UP
+.1e1b	8d 51 1c	sta $1c51		sta player_direction
+.1e1e	4c 2d 1e	jmp $1e2d		jmp joystick_end
+.1e21	ad 53 1c	lda $1c53	+	lda joy_cache
+.1e24	29 02		and #$02		and #$02
+.1e26	d0 05		bne $1e2d		bne joystick_end
+.1e28	a9 02		lda #$02		lda #DIR_DOWN
+.1e2a	8d 51 1c	sta $1c51		sta player_direction
+.1e2d					joystick_end:
+.1e2d	a9 00		lda #$00		lda #$00
+.1e2f	8d 53 1c	sta $1c53		sta joy_cache
+.1e32	60		rts			rts
+.1e33					player_move_right:
+.1e33	a0 03		ldy #$03		ldy #$03						; character position is one behind the sprite location
+.1e35	b1 60		lda ($60),y		lda (PLAYER_SCRN),y 			; so we can check in front and behind.  In this case we add 3 to look ahead
+.1e37	c9 20		cmp #$20		cmp #$20
+.1e39	f0 11		beq $1e4c		beq player_move_right_yes
+.1e3b	c9 45		cmp #$45		cmp #$45
+.1e3d	f0 0d		beq $1e4c		beq player_move_right_yes
+.1e3f	c9 52		cmp #$52		cmp #$52
+.1e41	f0 09		beq $1e4c		beq player_move_right_yes
+.1e43	c9 6c		cmp #$6c		cmp #$6C
+.1e45	f0 05		beq $1e4c		beq player_move_right_yes
+.1e47	c9 7c		cmp #$7c		cmp #$7c
+.1e49	f0 01		beq $1e4c		beq player_move_right_yes
+.1e4b	60		rts			rts								; nope - exit
+.1e4c					player_move_right_yes:
+.1e4c	ce 52 1c	dec $1c52		dec player_move_bytes			; decrease the 8 counter by 1
+.1e4f	d0 1e		bne $1e6f		bne player_move_right_sprite	; if its not zero, jump ahead
+.1e51	a9 08		lda #$08		lda #$08						; else reset it to 8
+.1e53	8d 52 1c	sta $1c52		sta player_move_bytes
+.1e56	e6 60		inc $60			inc PLAYER_SCRN					; ...increase the low byte of the screen matrix address
+.1e58	d0 02		bne $1e5c		bne +							; ...if the low byte did not wrap around to zero, jump ahead
+.1e5a	e6 61		inc $61			inc PLAYER_SCRN+1				; ...else increase the high byte of the screen matrix address
+.1e5c	a5 60		lda $60		+	lda PLAYER_SCRN					; copy current location-1 to
+.1e5e	85 62		sta $62			sta PLAYER_SCRN+2				; above location (to make the math easier)
+.1e60	a5 61		lda $61			lda PLAYER_SCRN+1
+.1e62	85 63		sta $63			sta PLAYER_SCRN+3
+.1e64	a5 62		lda $62			lda PLAYER_SCRN+2				; update the address 'above' the
+.1e66	38		sec			sec								; player
+.1e67	e9 27		sbc #$27		sbc #$27						; 39 memory locations = above
+.1e69	85 62		sta $62			sta PLAYER_SCRN+2				; save it
+.1e6b	b0 02		bcs $1e6f		bcs player_move_right_sprite
+.1e6d	c6 63		dec $63			dec PLAYER_SCRN+3				; if wrap around, dec high byte
+.1e6f					player_move_right_sprite:
+.1e6f	18		clc			clc
+.1e70	ad 00 d0	lda $d000		lda SPRITE_0_X_POSITION
+.1e73	69 01		adc #$01		adc #$01
+.1e75	90 05		bcc $1e7c		bcc +
+.1e77	a2 01		ldx #$01		ldx #$01
+.1e79	8e 10 d0	stx $d010		stx SPRITE_XMSB
+.1e7c	8d 00 d0	sta $d000	+	sta SPRITE_0_X_POSITION
+.1e7f	60		rts			rts
+.1e80					player_move_left:
+.1e80	a0 00		ldy #$00		ldy #$00
+.1e82	b1 60		lda ($60),y		lda (PLAYER_SCRN),y
+.1e84	c9 20		cmp #$20		cmp #$20
+.1e86	f0 11		beq $1e99		beq player_move_left_yes
+.1e88	c9 45		cmp #$45		cmp #$45
+.1e8a	f0 0d		beq $1e99		beq player_move_left_yes
+.1e8c	c9 52		cmp #$52		cmp #$52
+.1e8e	f0 09		beq $1e99		beq player_move_left_yes
+.1e90	c9 6c		cmp #$6c		cmp #$6C
+.1e92	f0 05		beq $1e99		beq player_move_left_yes
+.1e94	c9 7c		cmp #$7c		cmp #$7c
+.1e96	f0 01		beq $1e99		beq player_move_left_yes
+.1e98	60		rts			rts								; nope - exit
+.1e99					player_move_left_yes:
+.1e99	ce 52 1c	dec $1c52		dec player_move_bytes			; decrease the 8 counter by 1
+.1e9c	d0 1e		bne $1ebc		bne player_move_left_sprite		; if its not zero, jump ahead
+.1e9e	a9 08		lda #$08		lda #$08						; else reset it to 8
+.1ea0	8d 52 1c	sta $1c52		sta player_move_bytes
+.1ea3	c6 60		dec $60			dec PLAYER_SCRN					; ...increase the low byte of the screen matrix address
+.1ea5	d0 02		bne $1ea9		bne +							; ...if the low byte did not wrap around to zero, jump ahead
+.1ea7	c6 61		dec $61			dec PLAYER_SCRN+1				; ...else increase the high byte of the screen matrix address
+.1ea9	a5 60		lda $60		+	lda PLAYER_SCRN					; copy current location-1 to
+.1eab	85 62		sta $62			sta PLAYER_SCRN+2				; above location (to make the math easier)
+.1ead	a5 61		lda $61			lda PLAYER_SCRN+1
+.1eaf	85 63		sta $63			sta PLAYER_SCRN+3
+.1eb1	a5 62		lda $62			lda PLAYER_SCRN+2				; update the address 'above' the
+.1eb3	38		sec			sec								; player
+.1eb4	e9 27		sbc #$27		sbc #$27						; 39 memory locations = above
+.1eb6	85 62		sta $62			sta PLAYER_SCRN+2				; save it
+.1eb8	b0 02		bcs $1ebc		bcs player_move_left_sprite
+.1eba	c6 63		dec $63			dec PLAYER_SCRN+3				; if wrap around, dec high byte
+.1ebc					player_move_left_sprite
+.1ebc	38		sec			sec
+.1ebd	ad 00 d0	lda $d000		lda SPRITE_0_X_POSITION
+.1ec0	e9 01		sbc #$01		sbc #$01
+.1ec2	b0 05		bcs $1ec9		bcs +
+.1ec4	a2 00		ldx #$00		ldx #$00
+.1ec6	8e 10 d0	stx $d010		stx SPRITE_XMSB
+.1ec9	8d 00 d0	sta $d000	+	sta SPRITE_0_X_POSITION
+.1ecc	60		rts			rts
+.1ecd					player_move_up:
+.1ecd	a0 01		ldy #$01		ldy #$01						; in the irq, we are syncing the 'above' screen address
+.1ecf	b1 62		lda ($62),y		lda (PLAYER_SCRN+2),y 			; with the current player address
+.1ed1	c9 20		cmp #$20		cmp #$20
+.1ed3	f0 11		beq $1ee6		beq player_move_up_yes
+.1ed5	c9 45		cmp #$45		cmp #$45
+.1ed7	f0 0d		beq $1ee6		beq player_move_up_yes
+.1ed9	c9 52		cmp #$52		cmp #$52
+.1edb	f0 09		beq $1ee6		beq player_move_up_yes
+.1edd	c9 6c		cmp #$6c		cmp #$6C
+.1edf	f0 05		beq $1ee6		beq player_move_up_yes
+.1ee1	c9 7c		cmp #$7c		cmp #$7c
+.1ee3	f0 01		beq $1ee6		beq player_move_up_yes
+.1ee5	60		rts			rts								; nope - exit
+.1ee6					player_move_up_yes:
+.1ee6	ce 52 1c	dec $1c52		dec player_move_bytes			; decrease the 8 counter by 1
+.1ee9	d0 23		bne $1f0e		bne player_move_up_sprite		; if its not zero, jump ahead
+.1eeb	a9 08		lda #$08		lda #$08						; else reset it to 8
+.1eed	8d 52 1c	sta $1c52		sta player_move_bytes
+.1ef0	a5 60		lda $60			lda PLAYER_SCRN					; subtract 39 from player screen location
+.1ef2	38		sec			sec
+.1ef3	e9 28		sbc #$28		sbc #$28						; 39 memory locations = above
+.1ef5	85 60		sta $60			sta PLAYER_SCRN					; save it
+.1ef7	b0 02		bcs $1efb		bcs +
+.1ef9	c6 61		dec $61			dec PLAYER_SCRN+1				; if wrap around, dec high byte
+.1efb	a5 60		lda $60		+	lda PLAYER_SCRN					; copy current location-1 to
+.1efd	85 62		sta $62			sta PLAYER_SCRN+2				; above location (to make the math easier)
+.1eff	a5 61		lda $61			lda PLAYER_SCRN+1
+.1f01	85 63		sta $63			sta PLAYER_SCRN+3
+.1f03	a5 62		lda $62			lda PLAYER_SCRN+2				; update the address 'above' the
+.1f05	38		sec			sec								; player
+.1f06	e9 27		sbc #$27		sbc #$27						; 39 memory locations = above
+.1f08	85 62		sta $62			sta PLAYER_SCRN+2				; save it
+.1f0a	b0 02		bcs $1f0e		bcs player_move_up_sprite
+.1f0c	c6 63		dec $63			dec PLAYER_SCRN+3				; if wrap around, dec high byte
+.1f0e					player_move_up_sprite:
+.1f0e	38		sec			sec
+.1f0f	ad 01 d0	lda $d001		lda SPRITE_0_Y_POSITION
+.1f12	e9 01		sbc #$01		sbc #$01
+.1f14	8d 01 d0	sta $d001		sta SPRITE_0_Y_POSITION
+.1f17	60		rts			rts
+.1f18					player_move_down:
+.1f18	a0 51		ldy #$51		ldy #$51						; what is below the player?
+.1f1a	b1 60		lda ($60),y		lda (PLAYER_SCRN),y
+.1f1c	c9 20		cmp #$20		cmp #$20
+.1f1e	f0 11		beq $1f31		beq player_move_down_yes
+.1f20	c9 45		cmp #$45		cmp #$45
+.1f22	f0 0d		beq $1f31		beq player_move_down_yes
+.1f24	c9 52		cmp #$52		cmp #$52
+.1f26	f0 09		beq $1f31		beq player_move_down_yes
+.1f28	c9 6c		cmp #$6c		cmp #$6C
+.1f2a	f0 05		beq $1f31		beq player_move_down_yes
+.1f2c	c9 7c		cmp #$7c		cmp #$7c
+.1f2e	f0 01		beq $1f31		beq player_move_down_yes
+.1f30	60		rts			rts								; nope - exit
+.1f31					player_move_down_yes
+.1f31	ce 52 1c	dec $1c52		dec player_move_bytes			; decrease the 8 counter by 1
+.1f34	d0 23		bne $1f59		bne player_move_down_sprite		; if its not zero, jump ahead
+.1f36	a9 08		lda #$08		lda #$08						; else reset it to 8
+.1f38	8d 52 1c	sta $1c52		sta player_move_bytes
+.1f3b	a5 60		lda $60			lda PLAYER_SCRN					; subtract 39 from player screen location
+.1f3d	18		clc			clc
+.1f3e	69 28		adc #$28		adc #$28						; 39 memory locations = above
+.1f40	85 60		sta $60			sta PLAYER_SCRN					; save it
+.1f42	90 02		bcc $1f46		bcc +
+.1f44	e6 61		inc $61			inc PLAYER_SCRN+1				; if wrap around, dec high byte
+.1f46	a5 60		lda $60		+	lda PLAYER_SCRN					; copy current location-1 to
+.1f48	85 62		sta $62			sta PLAYER_SCRN+2				; above location (to make the math easier)
+.1f4a	a5 61		lda $61			lda PLAYER_SCRN+1
+.1f4c	85 63		sta $63			sta PLAYER_SCRN+3
+.1f4e	a5 62		lda $62			lda PLAYER_SCRN+2				; update the address 'above' the
+.1f50	38		sec			sec								; player
+.1f51	e9 27		sbc #$27		sbc #$27						; 39 memory locations = above
+.1f53	85 62		sta $62			sta PLAYER_SCRN+2				; save it
+.1f55	b0 02		bcs $1f59		bcs player_move_down_sprite
+.1f57	c6 63		dec $63			dec PLAYER_SCRN+3				; if wrap around, dec high byte
+.1f59					player_move_down_sprite:
+.1f59	18		clc			clc
+.1f5a	ad 01 d0	lda $d001		lda SPRITE_0_Y_POSITION
+.1f5d	69 01		adc #$01		adc #$01
+.1f5f	8d 01 d0	sta $d001		sta SPRITE_0_Y_POSITION
+.1f62	60		rts			rts
+.1f63					select_player_r_anim:
+.1f63	a2 00		ldx #$00		ldx #$00
+.1f65	bd 10 48	lda $4810,x	-	lda pacman_r_fr2, x
+.1f68	9d 40 0e	sta $0e40,x		sta SPRITE_1_DATA,x
+.1f6b	e8		inx			inx
+.1f6c	e0 3f		cpx #$3f		cpx #$3F
+.1f6e	d0 f5		bne $1f65		bne -
+.1f70	a2 00		ldx #$00		ldx #$00
+.1f72	bd 50 48	lda $4850,x	-	lda pacman_r_fr3, x
+.1f75	9d 80 0e	sta $0e80,x		sta SPRITE_2_DATA,x
+.1f78	e8		inx			inx
+.1f79	e0 3f		cpx #$3f		cpx #$3F
+.1f7b	d0 f5		bne $1f72		bne -
+.1f7d	60		rts			rts
+.1f7e					select_player_l_anim:
+.1f7e	a2 00		ldx #$00		ldx #$00
+.1f80	bd 90 48	lda $4890,x	-	lda pacman_l_fr1, x
+.1f83	9d 40 0e	sta $0e40,x		sta SPRITE_1_DATA,x
+.1f86	e8		inx			inx
+.1f87	e0 3f		cpx #$3f		cpx #$3F
+.1f89	d0 f5		bne $1f80		bne -
+.1f8b	a2 00		ldx #$00		ldx #$00
+.1f8d	bd d0 48	lda $48d0,x	-	lda pacman_l_fr2, x
+.1f90	9d 80 0e	sta $0e80,x		sta SPRITE_2_DATA,x
+.1f93	e8		inx			inx
+.1f94	e0 3f		cpx #$3f		cpx #$3F
+.1f96	d0 f5		bne $1f8d		bne -
+.1f98	60		rts			rts
 
 ;******  Processing file: ./src/screen_data.asm
 
-.1e71					char_data:
->1e71	3c 66 6e 6e 60 62 3c 00			.byte	$3C, $66, $6E, $6E, $60, $62, $3C, $00
->1e79	18 3c 66 7e 66 66 66 00			.byte	$18, $3C, $66, $7E, $66, $66, $66, $00
->1e81	7c 66 66 7c 66 66 7c 00			.byte	$7C, $66, $66, $7C, $66, $66, $7C, $00
->1e89	3c 66 60 60 60 66 3c 00			.byte	$3C, $66, $60, $60, $60, $66, $3C, $00
->1e91	78 6c 66 66 66 6c 78 00			.byte	$78, $6C, $66, $66, $66, $6C, $78, $00
->1e99	7e 60 60 78 60 60 7e 00			.byte	$7E, $60, $60, $78, $60, $60, $7E, $00
->1ea1	7e 60 60 78 60 60 60 00			.byte	$7E, $60, $60, $78, $60, $60, $60, $00
->1ea9	3c 66 60 6e 66 66 3c 00			.byte	$3C, $66, $60, $6E, $66, $66, $3C, $00
->1eb1	66 66 66 7e 66 66 66 00			.byte	$66, $66, $66, $7E, $66, $66, $66, $00
->1eb9	3c 18 18 18 18 18 3c 00			.byte	$3C, $18, $18, $18, $18, $18, $3C, $00
->1ec1	1e 0c 0c 0c 0c 6c 38 00			.byte	$1E, $0C, $0C, $0C, $0C, $6C, $38, $00
->1ec9	66 6c 78 70 78 6c 66 00			.byte	$66, $6C, $78, $70, $78, $6C, $66, $00
->1ed1	60 60 60 60 60 60 7e 00			.byte	$60, $60, $60, $60, $60, $60, $7E, $00
->1ed9	63 77 7f 6b 63 63 63 00			.byte	$63, $77, $7F, $6B, $63, $63, $63, $00
->1ee1	66 76 7e 7e 6e 66 66 00			.byte	$66, $76, $7E, $7E, $6E, $66, $66, $00
->1ee9	3c 66 66 66 66 66 3c 00			.byte	$3C, $66, $66, $66, $66, $66, $3C, $00
->1ef1	7c 66 66 7c 60 60 60 00			.byte	$7C, $66, $66, $7C, $60, $60, $60, $00
->1ef9	3c 66 66 66 66 3c 0e 00			.byte	$3C, $66, $66, $66, $66, $3C, $0E, $00
->1f01	7c 66 66 7c 78 6c 66 00			.byte	$7C, $66, $66, $7C, $78, $6C, $66, $00
->1f09	3c 66 60 3c 06 66 3c 00			.byte	$3C, $66, $60, $3C, $06, $66, $3C, $00
->1f11	7e 18 18 18 18 18 18 00			.byte	$7E, $18, $18, $18, $18, $18, $18, $00
->1f19	66 66 66 66 66 66 3c 00			.byte	$66, $66, $66, $66, $66, $66, $3C, $00
->1f21	66 66 66 66 66 3c 18 00			.byte	$66, $66, $66, $66, $66, $3C, $18, $00
->1f29	63 63 63 6b 7f 77 63 00			.byte	$63, $63, $63, $6B, $7F, $77, $63, $00
->1f31	66 66 3c 18 3c 66 66 00			.byte	$66, $66, $3C, $18, $3C, $66, $66, $00
->1f39	66 66 66 3c 18 18 18 00			.byte	$66, $66, $66, $3C, $18, $18, $18, $00
->1f41	7e 06 0c 18 30 60 7e 00			.byte	$7E, $06, $0C, $18, $30, $60, $7E, $00
->1f49	3c 30 30 30 30 30 3c 00			.byte	$3C, $30, $30, $30, $30, $30, $3C, $00
->1f51	0c 12 30 7c 30 62 fc 00			.byte	$0C, $12, $30, $7C, $30, $62, $FC, $00
->1f59	3c 0c 0c 0c 0c 0c 3c 00			.byte	$3C, $0C, $0C, $0C, $0C, $0C, $3C, $00
->1f61	00 18 3c 7e 18 18 18 18			.byte	$00, $18, $3C, $7E, $18, $18, $18, $18
->1f69	00 10 30 7f 7f 30 10 00			.byte	$00, $10, $30, $7F, $7F, $30, $10, $00
->1f71	00 00 00 00 00 00 00 00			.byte	$00, $00, $00, $00, $00, $00, $00, $00
->1f79	18 18 18 18 00 00 18 00			.byte	$18, $18, $18, $18, $00, $00, $18, $00
->1f81	66 66 66 00 00 00 00 00			.byte	$66, $66, $66, $00, $00, $00, $00, $00
->1f89	66 66 ff 66 ff 66 66 00			.byte	$66, $66, $FF, $66, $FF, $66, $66, $00
->1f91	18 3e 60 3c 06 7c 18 00			.byte	$18, $3E, $60, $3C, $06, $7C, $18, $00
->1f99	62 66 0c 18 30 66 46 00			.byte	$62, $66, $0C, $18, $30, $66, $46, $00
->1fa1	3c 66 3c 38 67 66 3f 00			.byte	$3C, $66, $3C, $38, $67, $66, $3F, $00
->1fa9	06 0c 18 00 00 00 00 00			.byte	$06, $0C, $18, $00, $00, $00, $00, $00
->1fb1	0c 18 30 30 30 18 0c 00			.byte	$0C, $18, $30, $30, $30, $18, $0C, $00
->1fb9	30 18 0c 0c 0c 18 30 00			.byte	$30, $18, $0C, $0C, $0C, $18, $30, $00
->1fc1	00 66 3c ff 3c 66 00 00			.byte	$00, $66, $3C, $FF, $3C, $66, $00, $00
->1fc9	00 18 18 7e 18 18 00 00			.byte	$00, $18, $18, $7E, $18, $18, $00, $00
->1fd1	00 00 00 00 00 18 18 30			.byte	$00, $00, $00, $00, $00, $18, $18, $30
->1fd9	00 00 00 7e 00 00 00 00			.byte	$00, $00, $00, $7E, $00, $00, $00, $00
->1fe1	00 00 00 00 00 18 18 00			.byte	$00, $00, $00, $00, $00, $18, $18, $00
->1fe9	00 03 06 0c 18 30 60 00			.byte	$00, $03, $06, $0C, $18, $30, $60, $00
->1ff1	3c 66 6e 76 66 66 3c 00			.byte	$3C, $66, $6E, $76, $66, $66, $3C, $00
->1ff9	18 18 38 18 18 18 7e 00			.byte	$18, $18, $38, $18, $18, $18, $7E, $00
->2001	3c 66 06 0c 30 60 7e 00			.byte	$3C, $66, $06, $0C, $30, $60, $7E, $00
->2009	3c 66 06 1c 06 66 3c 00			.byte	$3C, $66, $06, $1C, $06, $66, $3C, $00
->2011	06 0e 1e 66 7f 06 06 00			.byte	$06, $0E, $1E, $66, $7F, $06, $06, $00
->2019	7e 60 7c 06 06 66 3c 00			.byte	$7E, $60, $7C, $06, $06, $66, $3C, $00
->2021	3c 66 60 7c 66 66 3c 00			.byte	$3C, $66, $60, $7C, $66, $66, $3C, $00
->2029	7e 66 0c 18 18 18 18 00			.byte	$7E, $66, $0C, $18, $18, $18, $18, $00
->2031	3c 66 66 3c 66 66 3c 00			.byte	$3C, $66, $66, $3C, $66, $66, $3C, $00
->2039	3c 66 66 3e 06 66 3c 00			.byte	$3C, $66, $66, $3E, $06, $66, $3C, $00
->2041	00 00 18 00 00 18 00 00			.byte	$00, $00, $18, $00, $00, $18, $00, $00
->2049	00 00 18 00 00 18 18 30			.byte	$00, $00, $18, $00, $00, $18, $18, $30
->2051	0e 18 30 60 30 18 0e 00			.byte	$0E, $18, $30, $60, $30, $18, $0E, $00
->2059	00 00 7e 00 7e 00 00 00			.byte	$00, $00, $7E, $00, $7E, $00, $00, $00
->2061	70 18 0c 06 0c 18 70 00			.byte	$70, $18, $0C, $06, $0C, $18, $70, $00
->2069	3c 66 06 0c 18 00 18 00			.byte	$3C, $66, $06, $0C, $18, $00, $18, $00
->2071	00 00 00 ff ff 00 00 00			.byte	$00, $00, $00, $FF, $FF, $00, $00, $00
->2079	08 1c 3e 7f 7f 1c 3e 00			.byte	$08, $1C, $3E, $7F, $7F, $1C, $3E, $00
->2081	18 18 18 18 18 18 18 18			.byte	$18, $18, $18, $18, $18, $18, $18, $18
->2089	00 00 00 ff ff 00 00 00			.byte	$00, $00, $00, $FF, $FF, $00, $00, $00
->2091	00 00 ff ff 00 00 00 00			.byte	$00, $00, $FF, $FF, $00, $00, $00, $00
->2099	00 ff ff 00 00 00 00 00			.byte	$00, $FF, $FF, $00, $00, $00, $00, $00
->20a1	00 00 00 00 ff ff 00 00			.byte	$00, $00, $00, $00, $FF, $FF, $00, $00
->20a9	30 30 30 30 30 30 30 30			.byte	$30, $30, $30, $30, $30, $30, $30, $30
->20b1	0c 0c 0c 0c 0c 0c 0c 0c			.byte	$0C, $0C, $0C, $0C, $0C, $0C, $0C, $0C
->20b9	00 00 00 e0 f0 38 18 18			.byte	$00, $00, $00, $E0, $F0, $38, $18, $18
->20c1	18 18 1c 0f 07 00 00 00			.byte	$18, $18, $1C, $0F, $07, $00, $00, $00
->20c9	18 18 38 f0 e0 00 00 00			.byte	$18, $18, $38, $F0, $E0, $00, $00, $00
->20d1	c0 c0 c0 c0 c0 c0 ff ff			.byte	$C0, $C0, $C0, $C0, $C0, $C0, $FF, $FF
->20d9	c0 e0 70 38 1c 0e 07 03			.byte	$C0, $E0, $70, $38, $1C, $0E, $07, $03
->20e1	03 07 0e 1c 38 70 e0 c0			.byte	$03, $07, $0E, $1C, $38, $70, $E0, $C0
->20e9	ff ff c0 c0 c0 c0 c0 c0			.byte	$FF, $FF, $C0, $C0, $C0, $C0, $C0, $C0
->20f1	ff ff 03 03 03 03 03 03			.byte	$FF, $FF, $03, $03, $03, $03, $03, $03
->20f9	00 3c 7e 7e 7e 7e 3c 00			.byte	$00, $3C, $7E, $7E, $7E, $7E, $3C, $00
->2101	00 00 00 00 00 ff ff 00			.byte	$00, $00, $00, $00, $00, $FF, $FF, $00
->2109	36 7f 7f 7f 3e 1c 08 00			.byte	$36, $7F, $7F, $7F, $3E, $1C, $08, $00
->2111	60 60 60 60 60 60 60 60			.byte	$60, $60, $60, $60, $60, $60, $60, $60
->2119	00 00 00 07 0f 1c 18 18			.byte	$00, $00, $00, $07, $0F, $1C, $18, $18
->2121	c3 e7 7e 3c 3c 7e e7 c3			.byte	$C3, $E7, $7E, $3C, $3C, $7E, $E7, $C3
->2129	00 3c 7e 66 66 7e 3c 00			.byte	$00, $3C, $7E, $66, $66, $7E, $3C, $00
->2131	18 18 66 66 18 18 3c 00			.byte	$18, $18, $66, $66, $18, $18, $3C, $00
->2139	06 06 06 06 06 06 06 06			.byte	$06, $06, $06, $06, $06, $06, $06, $06
->2141	08 1c 3e 7f 3e 1c 08 00			.byte	$08, $1C, $3E, $7F, $3E, $1C, $08, $00
->2149	18 18 18 ff ff 18 18 18			.byte	$18, $18, $18, $FF, $FF, $18, $18, $18
->2151	c0 c0 30 30 c0 c0 30 30			.byte	$C0, $C0, $30, $30, $C0, $C0, $30, $30
->2159	18 18 18 18 18 18 18 18			.byte	$18, $18, $18, $18, $18, $18, $18, $18
->2161	00 00 03 3e 76 36 36 00			.byte	$00, $00, $03, $3E, $76, $36, $36, $00
->2169	ff 7f 3f 1f 0f 07 03 01			.byte	$FF, $7F, $3F, $1F, $0F, $07, $03, $01
->2171	00 00 00 00 00 00 00 00			.byte	$00, $00, $00, $00, $00, $00, $00, $00
->2179	f0 f0 f0 f0 f0 f0 f0 f0			.byte	$F0, $F0, $F0, $F0, $F0, $F0, $F0, $F0
->2181	00 00 00 00 ff ff ff ff			.byte	$00, $00, $00, $00, $FF, $FF, $FF, $FF
->2189	ff 00 00 00 00 00 00 00			.byte	$FF, $00, $00, $00, $00, $00, $00, $00
->2191	00 00 00 00 00 00 00 ff			.byte	$00, $00, $00, $00, $00, $00, $00, $FF
->2199	c0 c0 c0 c0 c0 c0 c0 c0			.byte	$C0, $C0, $C0, $C0, $C0, $C0, $C0, $C0
->21a1	cc cc 33 33 cc cc 33 33			.byte	$CC, $CC, $33, $33, $CC, $CC, $33, $33
->21a9	03 03 03 03 03 03 03 03			.byte	$03, $03, $03, $03, $03, $03, $03, $03
->21b1	00 00 00 00 cc cc 33 33			.byte	$00, $00, $00, $00, $CC, $CC, $33, $33
->21b9	ff fe fc f8 f0 e0 c0 80			.byte	$FF, $FE, $FC, $F8, $F0, $E0, $C0, $80
->21c1	03 03 03 03 03 03 03 03			.byte	$03, $03, $03, $03, $03, $03, $03, $03
->21c9	18 18 18 1f 1f 18 18 18			.byte	$18, $18, $18, $1F, $1F, $18, $18, $18
->21d1	00 00 00 00 0f 0f 0f 0f			.byte	$00, $00, $00, $00, $0F, $0F, $0F, $0F
->21d9	18 18 18 1f 1f 00 00 00			.byte	$18, $18, $18, $1F, $1F, $00, $00, $00
->21e1	00 00 00 f8 f8 18 18 18			.byte	$00, $00, $00, $F8, $F8, $18, $18, $18
->21e9	00 00 00 00 00 00 ff ff			.byte	$00, $00, $00, $00, $00, $00, $FF, $FF
->21f1	00 00 00 1f 1f 18 18 18			.byte	$00, $00, $00, $1F, $1F, $18, $18, $18
->21f9	18 18 18 ff ff 00 00 00			.byte	$18, $18, $18, $FF, $FF, $00, $00, $00
->2201	00 00 00 ff ff 18 18 18			.byte	$00, $00, $00, $FF, $FF, $18, $18, $18
->2209	18 18 18 f8 f8 18 18 18			.byte	$18, $18, $18, $F8, $F8, $18, $18, $18
->2211	c0 c0 c0 c0 c0 c0 c0 c0			.byte	$C0, $C0, $C0, $C0, $C0, $C0, $C0, $C0
->2219	e0 e0 e0 e0 e0 e0 e0 e0			.byte	$E0, $E0, $E0, $E0, $E0, $E0, $E0, $E0
->2221	07 07 07 07 07 07 07 07			.byte	$07, $07, $07, $07, $07, $07, $07, $07
->2229	ff ff 00 00 00 00 00 00			.byte	$FF, $FF, $00, $00, $00, $00, $00, $00
->2231	ff ff ff 00 00 00 00 00			.byte	$FF, $FF, $FF, $00, $00, $00, $00, $00
->2239	00 00 00 00 00 ff ff ff			.byte	$00, $00, $00, $00, $00, $FF, $FF, $FF
->2241	03 03 03 03 03 03 ff ff			.byte	$03, $03, $03, $03, $03, $03, $FF, $FF
->2249	00 00 00 00 f0 f0 f0 f0			.byte	$00, $00, $00, $00, $F0, $F0, $F0, $F0
->2251	0f 0f 0f 0f 00 00 00 00			.byte	$0F, $0F, $0F, $0F, $00, $00, $00, $00
->2259	18 18 18 f8 f8 00 00 00			.byte	$18, $18, $18, $F8, $F8, $00, $00, $00
->2261	f0 f0 f0 f0 00 00 00 00			.byte	$F0, $F0, $F0, $F0, $00, $00, $00, $00
->2269	f0 f0 f0 f0 0f 0f 0f 0f			.byte	$F0, $F0, $F0, $F0, $0F, $0F, $0F, $0F
->2271	c3 99 91 91 9f 99 c3 ff			.byte	$C3, $99, $91, $91, $9F, $99, $C3, $FF
->2279	e7 c3 99 81 99 99 99 ff			.byte	$E7, $C3, $99, $81, $99, $99, $99, $FF
->2281	83 99 99 83 99 99 83 ff			.byte	$83, $99, $99, $83, $99, $99, $83, $FF
->2289	c3 99 9f 9f 9f 99 c3 ff			.byte	$C3, $99, $9F, $9F, $9F, $99, $C3, $FF
->2291	87 93 99 99 99 93 87 ff			.byte	$87, $93, $99, $99, $99, $93, $87, $FF
->2299	81 9f 9f 87 9f 9f 81 ff			.byte	$81, $9F, $9F, $87, $9F, $9F, $81, $FF
->22a1	81 9f 9f 87 9f 9f 9f ff			.byte	$81, $9F, $9F, $87, $9F, $9F, $9F, $FF
->22a9	c3 99 9f 91 99 99 c3 ff			.byte	$C3, $99, $9F, $91, $99, $99, $C3, $FF
->22b1	99 99 99 81 99 99 99 ff			.byte	$99, $99, $99, $81, $99, $99, $99, $FF
->22b9	c3 e7 e7 e7 e7 e7 c3 ff			.byte	$C3, $E7, $E7, $E7, $E7, $E7, $C3, $FF
->22c1	e1 f3 f3 f3 f3 93 c7 ff			.byte	$E1, $F3, $F3, $F3, $F3, $93, $C7, $FF
->22c9	99 93 87 8f 87 93 99 ff			.byte	$99, $93, $87, $8F, $87, $93, $99, $FF
->22d1	9f 9f 9f 9f 9f 9f 81 ff			.byte	$9F, $9F, $9F, $9F, $9F, $9F, $81, $FF
->22d9	9c 88 80 94 9c 9c 9c ff			.byte	$9C, $88, $80, $94, $9C, $9C, $9C, $FF
->22e1	99 89 81 81 91 99 99 ff			.byte	$99, $89, $81, $81, $91, $99, $99, $FF
->22e9	c3 99 99 99 99 99 c3 ff			.byte	$C3, $99, $99, $99, $99, $99, $C3, $FF
->22f1	83 99 99 83 9f 9f 9f ff			.byte	$83, $99, $99, $83, $9F, $9F, $9F, $FF
->22f9	c3 99 99 99 99 c3 f1 ff			.byte	$C3, $99, $99, $99, $99, $C3, $F1, $FF
->2301	83 99 99 83 87 93 99 ff			.byte	$83, $99, $99, $83, $87, $93, $99, $FF
->2309	c3 99 9f c3 f9 99 c3 ff			.byte	$C3, $99, $9F, $C3, $F9, $99, $C3, $FF
->2311	81 e7 e7 e7 e7 e7 e7 ff			.byte	$81, $E7, $E7, $E7, $E7, $E7, $E7, $FF
->2319	99 99 99 99 99 99 c3 ff			.byte	$99, $99, $99, $99, $99, $99, $C3, $FF
->2321	99 99 99 99 99 c3 e7 ff			.byte	$99, $99, $99, $99, $99, $C3, $E7, $FF
->2329	9c 9c 9c 94 80 88 9c ff			.byte	$9C, $9C, $9C, $94, $80, $88, $9C, $FF
->2331	99 99 c3 e7 c3 99 99 ff			.byte	$99, $99, $C3, $E7, $C3, $99, $99, $FF
->2339	99 99 99 c3 e7 e7 e7 ff			.byte	$99, $99, $99, $C3, $E7, $E7, $E7, $FF
->2341	81 f9 f3 e7 cf 9f 81 ff			.byte	$81, $F9, $F3, $E7, $CF, $9F, $81, $FF
->2349	c3 cf cf cf cf cf c3 ff			.byte	$C3, $CF, $CF, $CF, $CF, $CF, $C3, $FF
->2351	f3 ed cf 83 cf 9d 03 ff			.byte	$F3, $ED, $CF, $83, $CF, $9D, $03, $FF
->2359	c3 f3 f3 f3 f3 f3 c3 ff			.byte	$C3, $F3, $F3, $F3, $F3, $F3, $C3, $FF
->2361	ff e7 c3 81 e7 e7 e7 e7			.byte	$FF, $E7, $C3, $81, $E7, $E7, $E7, $E7
->2369	ff ef cf 80 80 cf ef ff			.byte	$FF, $EF, $CF, $80, $80, $CF, $EF, $FF
->2371	ff ff ff ff ff ff ff ff			.byte	$FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF
->2379	e7 e7 e7 e7 ff ff e7 ff			.byte	$E7, $E7, $E7, $E7, $FF, $FF, $E7, $FF
->2381	99 99 99 ff ff ff ff ff			.byte	$99, $99, $99, $FF, $FF, $FF, $FF, $FF
->2389	99 99 00 99 00 99 99 ff			.byte	$99, $99, $00, $99, $00, $99, $99, $FF
->2391	e7 c1 9f c3 f9 83 e7 ff			.byte	$E7, $C1, $9F, $C3, $F9, $83, $E7, $FF
->2399	9d 99 f3 e7 cf 99 b9 ff			.byte	$9D, $99, $F3, $E7, $CF, $99, $B9, $FF
->23a1	c3 99 c3 c7 98 99 c0 ff			.byte	$C3, $99, $C3, $C7, $98, $99, $C0, $FF
->23a9	f9 f3 e7 ff ff ff ff ff			.byte	$F9, $F3, $E7, $FF, $FF, $FF, $FF, $FF
->23b1	f3 e7 cf cf cf e7 f3 ff			.byte	$F3, $E7, $CF, $CF, $CF, $E7, $F3, $FF
->23b9	cf e7 f3 f3 f3 e7 cf ff			.byte	$CF, $E7, $F3, $F3, $F3, $E7, $CF, $FF
->23c1	ff 99 c3 00 c3 99 ff ff			.byte	$FF, $99, $C3, $00, $C3, $99, $FF, $FF
->23c9	ff e7 e7 81 e7 e7 ff ff			.byte	$FF, $E7, $E7, $81, $E7, $E7, $FF, $FF
->23d1	ff ff ff ff ff e7 e7 cf			.byte	$FF, $FF, $FF, $FF, $FF, $E7, $E7, $CF
->23d9	ff ff ff 81 ff ff ff ff			.byte	$FF, $FF, $FF, $81, $FF, $FF, $FF, $FF
->23e1	ff ff ff ff ff e7 e7 ff			.byte	$FF, $FF, $FF, $FF, $FF, $E7, $E7, $FF
->23e9	ff fc f9 f3 e7 cf 9f ff			.byte	$FF, $FC, $F9, $F3, $E7, $CF, $9F, $FF
->23f1	c3 99 91 89 99 99 c3 ff			.byte	$C3, $99, $91, $89, $99, $99, $C3, $FF
->23f9	e7 e7 c7 e7 e7 e7 81 ff			.byte	$E7, $E7, $C7, $E7, $E7, $E7, $81, $FF
->2401	c3 99 f9 f3 cf 9f 81 ff			.byte	$C3, $99, $F9, $F3, $CF, $9F, $81, $FF
->2409	c3 99 f9 e3 f9 99 c3 ff			.byte	$C3, $99, $F9, $E3, $F9, $99, $C3, $FF
->2411	f9 f1 e1 99 80 f9 f9 ff			.byte	$F9, $F1, $E1, $99, $80, $F9, $F9, $FF
->2419	81 9f 83 f9 f9 99 c3 ff			.byte	$81, $9F, $83, $F9, $F9, $99, $C3, $FF
->2421	c3 99 9f 83 99 99 c3 ff			.byte	$C3, $99, $9F, $83, $99, $99, $C3, $FF
->2429	81 99 f3 e7 e7 e7 e7 ff			.byte	$81, $99, $F3, $E7, $E7, $E7, $E7, $FF
->2431	c3 99 99 c3 99 99 c3 ff			.byte	$C3, $99, $99, $C3, $99, $99, $C3, $FF
->2439	c3 99 99 c1 f9 99 c3 ff			.byte	$C3, $99, $99, $C1, $F9, $99, $C3, $FF
->2441	ff ff e7 ff ff e7 ff ff			.byte	$FF, $FF, $E7, $FF, $FF, $E7, $FF, $FF
->2449	ff ff e7 ff ff e7 e7 cf			.byte	$FF, $FF, $E7, $FF, $FF, $E7, $E7, $CF
->2451	f1 e7 cf 9f cf e7 f1 ff			.byte	$F1, $E7, $CF, $9F, $CF, $E7, $F1, $FF
->2459	ff ff 81 ff 81 ff ff ff			.byte	$FF, $FF, $81, $FF, $81, $FF, $FF, $FF
->2461	8f e7 f3 f9 f3 e7 8f ff			.byte	$8F, $E7, $F3, $F9, $F3, $E7, $8F, $FF
->2469	c3 99 f9 f3 e7 ff e7 ff			.byte	$C3, $99, $F9, $F3, $E7, $FF, $E7, $FF
->2471	ff ff ff 00 00 ff ff ff			.byte	$FF, $FF, $FF, $00, $00, $FF, $FF, $FF
->2479	00 00 00 00 00 00 00 00			.byte	$00, $00, $00, $00, $00, $00, $00, $00
->2481	e7 e7 e7 e7 e7 e7 e7 e7			.byte	$E7, $E7, $E7, $E7, $E7, $E7, $E7, $E7
->2489	ff ff ff 00 00 ff ff ff			.byte	$FF, $FF, $FF, $00, $00, $FF, $FF, $FF
->2491	ff ff 00 00 ff ff ff ff			.byte	$FF, $FF, $00, $00, $FF, $FF, $FF, $FF
->2499	ff 00 00 ff ff ff ff ff			.byte	$FF, $00, $00, $FF, $FF, $FF, $FF, $FF
->24a1	ff ff ff ff 00 00 ff ff			.byte	$FF, $FF, $FF, $FF, $00, $00, $FF, $FF
->24a9	cf cf cf cf cf cf cf cf			.byte	$CF, $CF, $CF, $CF, $CF, $CF, $CF, $CF
->24b1	f3 f3 f3 f3 f3 f3 f3 f3			.byte	$F3, $F3, $F3, $F3, $F3, $F3, $F3, $F3
->24b9	ff ff ff 1f 0f c7 e7 e7			.byte	$FF, $FF, $FF, $1F, $0F, $C7, $E7, $E7
->24c1	e7 e7 e3 f0 f8 ff ff ff			.byte	$E7, $E7, $E3, $F0, $F8, $FF, $FF, $FF
->24c9	e7 e7 c7 0f 1f ff ff ff			.byte	$E7, $E7, $C7, $0F, $1F, $FF, $FF, $FF
->24d1	3f 3f 3f 3f 3f 3f 00 00			.byte	$3F, $3F, $3F, $3F, $3F, $3F, $00, $00
->24d9	3f 1f 8f c7 e3 f1 f8 fc			.byte	$3F, $1F, $8F, $C7, $E3, $F1, $F8, $FC
->24e1	fc f8 f1 e3 c7 8f 1f 3f			.byte	$FC, $F8, $F1, $E3, $C7, $8F, $1F, $3F
->24e9	00 00 3f 3f 3f 3f 3f 3f			.byte	$00, $00, $3F, $3F, $3F, $3F, $3F, $3F
->24f1	00 00 fc fc fc fc fc fc			.byte	$00, $00, $FC, $FC, $FC, $FC, $FC, $FC
->24f9	00 00 ff ff ff ff 00 00			.byte	$00, $00, $FF, $FF, $FF, $FF, $00, $00
->2501	ff ff ff ff ff 00 00 ff			.byte	$FF, $FF, $FF, $FF, $FF, $00, $00, $FF
->2509	00 00 00 00 00 00 00 00			.byte	$00, $00, $00, $00, $00, $00, $00, $00
->2511	9f 9f 9f 9f 9f 9f 9f 9f			.byte	$9F, $9F, $9F, $9F, $9F, $9F, $9F, $9F
->2519	ff ff ff f8 f0 e3 e7 e7			.byte	$FF, $FF, $FF, $F8, $F0, $E3, $E7, $E7
->2521	3c 18 81 c3 c3 81 18 3c			.byte	$3C, $18, $81, $C3, $C3, $81, $18, $3C
->2529	00 00 00 00 00 00 00 00			.byte	$00, $00, $00, $00, $00, $00, $00, $00
->2531	00 00 00 00 00 00 00 00			.byte	$00, $00, $00, $00, $00, $00, $00, $00
->2539	f9 f9 f9 f9 f9 f9 f9 f9			.byte	$F9, $F9, $F9, $F9, $F9, $F9, $F9, $F9
->2541	00 00 00 00 00 00 00 00			.byte	$00, $00, $00, $00, $00, $00, $00, $00
->2549	e7 e7 e7 00 00 e7 e7 e7			.byte	$E7, $E7, $E7, $00, $00, $E7, $E7, $E7
->2551	3f 3f cf cf 3f 3f cf cf			.byte	$3F, $3F, $CF, $CF, $3F, $3F, $CF, $CF
->2559	e7 e7 e7 e7 e7 e7 e7 e7			.byte	$E7, $E7, $E7, $E7, $E7, $E7, $E7, $E7
->2561	00 00 00 00 00 00 00 00			.byte	$00, $00, $00, $00, $00, $00, $00, $00
->2569	00 80 c0 e0 f0 f8 fc fe			.byte	$00, $80, $C0, $E0, $F0, $F8, $FC, $FE
->2571	00 00 00 00 00 00 00 00			.byte	$00, $00, $00, $00, $00, $00, $00, $00
->2579	0f 0f 0f 0f 0f 0f 0f 0f			.byte	$0F, $0F, $0F, $0F, $0F, $0F, $0F, $0F
->2581	ff ff ff ff 00 00 00 00			.byte	$FF, $FF, $FF, $FF, $00, $00, $00, $00
->2589	00 ff ff ff ff ff ff ff			.byte	$00, $FF, $FF, $FF, $FF, $FF, $FF, $FF
->2591	ff ff ff ff ff ff ff 00			.byte	$FF, $FF, $FF, $FF, $FF, $FF, $FF, $00
->2599	3f 3f 3f 3f 3f 3f 3f 3f			.byte	$3F, $3F, $3F, $3F, $3F, $3F, $3F, $3F
->25a1	33 33 cc cc 33 33 cc cc			.byte	$33, $33, $CC, $CC, $33, $33, $CC, $CC
->25a9	fc fc fc fc fc fc fc fc			.byte	$FC, $FC, $FC, $FC, $FC, $FC, $FC, $FC
->25b1	ff ff ff ff 33 33 cc cc			.byte	$FF, $FF, $FF, $FF, $33, $33, $CC, $CC
->25b9	00 01 03 07 0f 1f 3f 7f			.byte	$00, $01, $03, $07, $0F, $1F, $3F, $7F
->25c1	fc fc fc fc fc fc fc fc			.byte	$FC, $FC, $FC, $FC, $FC, $FC, $FC, $FC
->25c9	e7 e7 e7 e0 e0 e7 e7 e7			.byte	$E7, $E7, $E7, $E0, $E0, $E7, $E7, $E7
->25d1	ff ff ff ff f0 f0 f0 f0			.byte	$FF, $FF, $FF, $FF, $F0, $F0, $F0, $F0
->25d9	e7 e7 e7 e0 e0 ff ff ff			.byte	$E7, $E7, $E7, $E0, $E0, $FF, $FF, $FF
->25e1	ff ff ff 07 07 e7 e7 e7			.byte	$FF, $FF, $FF, $07, $07, $E7, $E7, $E7
->25e9	ff ff ff ff ff ff 00 00			.byte	$FF, $FF, $FF, $FF, $FF, $FF, $00, $00
->25f1	ff ff ff e0 e0 e7 e7 e7			.byte	$FF, $FF, $FF, $E0, $E0, $E7, $E7, $E7
->25f9	e7 e7 e7 00 00 ff ff ff			.byte	$E7, $E7, $E7, $00, $00, $FF, $FF, $FF
->2601	ff ff ff 00 00 e7 e7 e7			.byte	$FF, $FF, $FF, $00, $00, $E7, $E7, $E7
->2609	e7 e7 e7 07 07 e7 e7 e7			.byte	$E7, $E7, $E7, $07, $07, $E7, $E7, $E7
->2611	3f 3f 3f 3f 3f 3f 3f 3f			.byte	$3F, $3F, $3F, $3F, $3F, $3F, $3F, $3F
->2619	1f 1f 1f 1f 1f 1f 1f 1f			.byte	$1F, $1F, $1F, $1F, $1F, $1F, $1F, $1F
->2621	f8 f8 f8 f8 f8 f8 f8 f8			.byte	$F8, $F8, $F8, $F8, $F8, $F8, $F8, $F8
->2629	00 00 ff ff ff ff ff ff			.byte	$00, $00, $FF, $FF, $FF, $FF, $FF, $FF
->2631	00 00 00 ff ff ff ff ff			.byte	$00, $00, $00, $FF, $FF, $FF, $FF, $FF
->2639	ff ff ff ff ff 00 00 00			.byte	$FF, $FF, $FF, $FF, $FF, $00, $00, $00
->2641	fc fc fc fc fc fc 00 00			.byte	$FC, $FC, $FC, $FC, $FC, $FC, $00, $00
->2649	ff ff ff ff 0f 0f 0f 0f			.byte	$FF, $FF, $FF, $FF, $0F, $0F, $0F, $0F
->2651	f0 f0 f0 f0 ff ff ff ff			.byte	$F0, $F0, $F0, $F0, $FF, $FF, $FF, $FF
->2659	e7 e7 e7 07 07 ff ff ff			.byte	$E7, $E7, $E7, $07, $07, $FF, $FF, $FF
->2661	0f 0f 0f 0f ff ff ff ff			.byte	$0F, $0F, $0F, $0F, $FF, $FF, $FF, $FF
->2669	0f 0f 0f 0f f0 f0 f0 f0			.byte	$0F, $0F, $0F, $0F, $F0, $F0, $F0, $F0
-.2671					scr_data:
->2671	a0 ef ef ef ef ef ef ef			.byte	$A0, $EF, $EF, $EF, $EF, $EF, $EF, $EF, $EF, $EF, $EF, $EF, $EF, $EF, $EF, $A0, $EF, $EF, $EF, $A0, $A0, $EF, $EF, $EF, $A0, $EF, $EF, $EF, $EF, $EF, $EF, $EF, $EF, $EF, $EF, $EF, $EF, $EF, $EF, $A0
->2679	ef ef ef ef ef ef ef a0 ef ef ef a0 a0 ef ef ef
->2689	a0 ef ef ef ef ef ef ef ef ef ef ef ef ef ef a0
->2699	a0 20 52 20 46 20 46 20			.byte	$A0, $20, $52, $20, $46, $20, $46, $20, $46, $20, $46, $20, $46, $20, $20, $A0, $20, $52, $20, $52, $52, $A0, $52, $20, $A0, $A0, $20, $52, $A0, $52, $20, $52, $20, $52, $20, $52, $20, $52, $20, $A0
->26a1	46 20 46 20 46 20 20 a0 20 52 20 52 52 a0 52 20
->26b1	a0 a0 20 52 a0 52 20 52 20 52 20 52 20 52 20 a0
->26c1	a0 6c 7b 6f 6f 6f a0 20			.byte	$A0, $6C, $7B, $6F, $6F, $6F, $A0, $20, $6F, $20, $20, $6F, $6F, $20, $20, $A0, $20, $20, $6F, $6F, $6F, $6F, $20, $20, $A0, $20, $20, $6F, $6F, $20, $20, $6F, $20, $20, $6F, $6F, $6F, $6C, $7B, $A0
->26c9	6f 20 20 6f 6f 20 20 a0 20 20 6f 6f 6f 6f 20 20
->26d9	a0 20 20 6f 6f 20 20 6f 20 20 6f 6f 6f 6c 7b a0
->26e9	a0 7c 7e 77 77 77 a0 20			.byte	$A0, $7C, $7E, $77, $77, $77, $A0, $20, $A0, $20, $20, $77, $77, $20, $20, $77, $20, $20, $77, $77, $77, $77, $20, $20, $20, $20, $20, $77, $77, $20, $20, $A0, $20, $20, $77, $77, $77, $7C, $7E, $A0
->26f1	a0 20 20 77 77 20 20 77 20 20 77 77 77 77 20 20
->2701	20 20 20 77 77 20 20 a0 20 20 77 77 77 7c 7e a0
->2711	a0 a0 44 a0 44 a0 44 20			.byte	$A0, $A0, $44, $A0, $44, $A0, $44, $20, $A0, $20, $45, $20, $45, $20, $45, $20, $45, $20, $45, $20, $20, $45, $20, $45, $20, $45, $20, $45, $20, $45, $20, $A0, $20, $45, $20, $45, $20, $45, $20, $A0
->2719	a0 20 45 20 45 20 45 20 45 20 45 20 20 45 20 45
->2729	20 45 20 45 20 45 20 a0 20 45 20 45 20 45 20 a0
->2739	a0 d1 d1 d1 20 20 d1 d1			.byte	$A0, $D1, $D1, $D1, $20, $20, $D1, $D1, $EF, $20, $20, $D1, $D1, $D1, $D1, $F7, $20, $20, $D1, $D1, $D1, $D1, $20, $20, $F7, $D1, $D1, $D1, $D1, $20, $20, $EF, $D1, $D1, $20, $20, $D1, $D1, $D1, $A0
->2741	ef 20 20 d1 d1 d1 d1 f7 20 20 d1 d1 d1 d1 20 20
->2751	f7 d1 d1 d1 d1 20 20 ef d1 d1 20 20 d1 d1 d1 a0
->2761	a0 20 52 20 52 20 52 20			.byte	$A0, $20, $52, $20, $52, $20, $52, $20, $52, $20, $46, $20, $46, $20, $20, $A0, $20, $52, $20, $52, $52, $A0, $52, $20, $A0, $20, $20, $52, $20, $52, $20, $52, $20, $52, $20, $52, $20, $52, $20, $A0
->2769	52 20 46 20 46 20 20 a0 20 52 20 52 52 a0 52 20
->2779	a0 20 20 52 20 52 20 52 20 52 20 52 20 52 20 a0
->2789	a0 20 20 6f 6f 6f 20 20			.byte	$A0, $20, $20, $6F, $6F, $6F, $20, $20, $6F, $20, $20, $6F, $6F, $20, $20, $A0, $20, $20, $6F, $6F, $6F, $6F, $20, $20, $A0, $20, $20, $6F, $6F, $20, $20, $6F, $20, $20, $6F, $6F, $6F, $20, $20, $A0
->2791	6f 20 20 6f 6f 20 20 a0 20 20 6f 6f 6f 6f 20 20
->27a1	a0 20 20 6f 6f 20 20 6f 20 20 6f 6f 6f 20 20 a0
->27b1	a0 20 20 77 77 77 20 20			.byte	$A0, $20, $20, $77, $77, $77, $20, $20, $A0, $20, $20, $77, $77, $20, $20, $77, $20, $20, $A0, $77, $77, $A0, $20, $20, $20, $20, $20, $77, $77, $20, $20, $A0, $20, $20, $77, $77, $77, $20, $20, $A0
->27b9	a0 20 20 77 77 20 20 77 20 20 a0 77 77 a0 20 20
->27c9	20 20 20 77 77 20 20 a0 20 20 77 77 77 20 20 a0
->27d9	a0 20 44 20 44 20 44 20			.byte	$A0, $20, $44, $20, $44, $20, $44, $20, $A0, $20, $45, $20, $45, $20, $45, $20, $45, $20, $A0, $20, $20, $A0, $20, $45, $20, $45, $20, $45, $20, $45, $20, $A0, $20, $45, $20, $45, $20, $45, $20, $A0
->27e1	a0 20 45 20 45 20 45 20 45 20 a0 20 20 a0 20 45
->27f1	20 45 20 45 20 45 20 a0 20 45 20 45 20 45 20 a0
->2801	a0 d1 d1 d1 20 20 d1 d1			.byte	$A0, $D1, $D1, $D1, $20, $20, $D1, $D1, $EF, $20, $20, $D1, $D1, $D1, $D1, $F7, $20, $20, $A0, $F7, $F7, $A0, $20, $20, $F7, $D1, $D1, $D1, $D1, $20, $20, $EF, $D1, $D1, $20, $20, $D1, $D1, $D1, $A0
->2809	ef 20 20 d1 d1 d1 d1 f7 20 20 a0 f7 f7 a0 20 20
->2819	f7 d1 d1 d1 d1 20 20 ef d1 d1 20 20 d1 d1 d1 a0
->2829	a0 20 52 20 52 20 52 20			.byte	$A0, $20, $52, $20, $52, $20, $52, $20, $52, $20, $20, $52, $20, $52, $20, $A0, $20, $52, $20, $52, $52, $20, $52, $20, $A0, $20, $20, $52, $20, $52, $20, $52, $20, $52, $20, $52, $20, $52, $20, $A0
->2831	52 20 20 52 20 52 20 a0 20 52 20 52 52 20 52 20
->2841	a0 20 20 52 20 52 20 52 20 52 20 52 20 52 20 a0
->2851	a0 20 20 6f 6f 6f 20 20			.byte	$A0, $20, $20, $6F, $6F, $6F, $20, $20, $6F, $20, $20, $6F, $6F, $20, $20, $A0, $20, $20, $6F, $6F, $6F, $6F, $20, $20, $A0, $20, $20, $6F, $6F, $20, $20, $6F, $20, $20, $6F, $6F, $6F, $20, $20, $A0
->2859	6f 20 20 6f 6f 20 20 a0 20 20 6f 6f 6f 6f 20 20
->2869	a0 20 20 6f 6f 20 20 6f 20 20 6f 6f 6f 20 20 a0
->2879	a0 20 20 77 77 77 20 20			.byte	$A0, $20, $20, $77, $77, $77, $20, $20, $A0, $20, $20, $77, $77, $20, $20, $77, $20, $20, $77, $77, $77, $77, $20, $20, $20, $20, $20, $77, $77, $20, $20, $A0, $20, $20, $77, $77, $77, $20, $20, $A0
->2881	a0 20 20 77 77 20 20 77 20 20 77 77 77 77 20 20
->2891	20 20 20 77 77 20 20 a0 20 20 77 77 77 20 20 a0
->28a1	a0 20 44 20 44 20 44 20			.byte	$A0, $20, $44, $20, $44, $20, $44, $20, $A0, $20, $45, $20, $45, $20, $45, $20, $45, $20, $45, $20, $20, $45, $20, $45, $20, $45, $20, $45, $20, $45, $20, $A0, $20, $45, $20, $45, $20, $45, $20, $A0
->28a9	a0 20 45 20 45 20 45 20 45 20 45 20 20 45 20 45
->28b9	20 45 20 45 20 45 20 a0 20 45 20 45 20 45 20 a0
->28c9	a0 d1 d1 d1 20 20 d1 d1			.byte	$A0, $D1, $D1, $D1, $20, $20, $D1, $D1, $EF, $20, $20, $D1, $D1, $D1, $D1, $F7, $20, $20, $D1, $D1, $D1, $D1, $20, $20, $F7, $D1, $D1, $D1, $D1, $20, $20, $EF, $D1, $D1, $20, $20, $D1, $D1, $D1, $A0
->28d1	ef 20 20 d1 d1 d1 d1 f7 20 20 d1 d1 d1 d1 20 20
->28e1	f7 d1 d1 d1 d1 20 20 ef d1 d1 20 20 d1 d1 d1 a0
->28f1	a0 20 52 20 52 20 52 20			.byte	$A0, $20, $52, $20, $52, $20, $52, $20, $52, $20, $52, $20, $52, $20, $20, $A0, $20, $46, $20, $20, $46, $A0, $46, $20, $A0, $20, $20, $52, $20, $52, $20, $52, $20, $52, $20, $52, $20, $52, $20, $A0
->28f9	52 20 52 20 52 20 20 a0 20 46 20 20 46 a0 46 20
->2909	a0 20 20 52 20 52 20 52 20 52 20 52 20 52 20 a0
->2919	a0 6c 7b 6f 6f 6f 20 20			.byte	$A0, $6C, $7B, $6F, $6F, $6F, $20, $20, $6F, $20, $20, $6F, $6F, $20, $20, $A0, $20, $20, $6F, $6F, $6F, $6F, $20, $20, $A0, $20, $20, $6F, $6F, $20, $20, $6F, $20, $20, $6F, $6F, $6F, $6C, $7B, $A0
->2921	6f 20 20 6f 6f 20 20 a0 20 20 6f 6f 6f 6f 20 20
->2931	a0 20 20 6f 6f 20 20 6f 20 20 6f 6f 6f 6c 7b a0
->2941	a0 7c 7e 77 77 77 20 20			.byte	$A0, $7C, $7E, $77, $77, $77, $20, $20, $A0, $20, $20, $77, $77, $20, $20, $77, $20, $20, $77, $77, $77, $77, $20, $20, $20, $20, $20, $77, $77, $20, $20, $A0, $20, $20, $77, $77, $77, $7C, $7E, $A0
->2949	a0 20 20 77 77 20 20 77 20 20 77 77 77 77 20 20
->2959	20 20 20 77 77 20 20 a0 20 20 77 77 77 7c 7e a0
->2969	a0 20 44 20 44 20 44 20			.byte	$A0, $20, $44, $20, $44, $20, $44, $20, $A0, $20, $45, $20, $45, $20, $45, $20, $45, $20, $45, $20, $A0, $45, $20, $45, $20, $45, $20, $45, $20, $45, $20, $A0, $20, $45, $20, $45, $20, $45, $20, $A0
->2971	a0 20 45 20 45 20 45 20 45 20 45 20 a0 45 20 45
->2981	20 45 20 45 20 45 20 a0 20 45 20 45 20 45 20 a0
->2991	a0 f7 f7 f7 f7 f7 f7 f7			.byte	$A0, $F7, $F7, $F7, $F7, $F7, $F7, $F7, $A0, $F7, $F7, $F7, $F7, $F7, $F7, $F7, $F7, $F7, $F7, $A0, $A0, $F7, $F7, $F7, $F7, $F7, $F7, $F7, $F7, $F7, $F7, $A0, $F7, $F7, $F7, $F7, $F7, $F7, $F7, $A0
->2999	a0 f7 f7 f7 f7 f7 f7 f7 f7 f7 f7 a0 a0 f7 f7 f7
->29a9	f7 f7 f7 f7 f7 f7 f7 a0 f7 f7 f7 f7 f7 f7 f7 a0
->29b9	a0 a0 a0 a0 a0 a0 a0 a0			.byte	$A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0
->29c1	a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0
->29d1	a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0
->29e1	a0 a0 a0 a0 a0 a0 a0 a0			.byte	$A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0
->29e9	a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0
->29f9	a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0
->2a09	a0 a0 a0 a0 a0 a0 a0 a0			.byte	$A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0
->2a11	a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0
->2a21	a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0
->2a31	a0 a0 a0 a0 a0 a0 a0 a0			.byte	$A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0
->2a39	a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0
->2a49	a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0
-.2a59					scr_color:
->2a59	08 08 08 08 08 08 08 08			.byte	$08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $06, $06, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08
->2a61	08 08 08 08 08 08 08 08 08 08 08 06 06 08 08 08
->2a71	08 08 08 08 08 08 08 08 08 08 08 08 08 08 08 08
->2a81	08 0e 08 0e 08 0e 08 0e			.byte	$08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $0E, $08, $0E, $08, $0E, $08, $08, $06, $08, $0E, $08, $06, $08, $08, $06, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08
->2a89	08 0e 08 0e 08 0e 0e 08 0e 08 0e 08 08 06 08 0e
->2a99	08 06 08 08 06 08 0e 08 0e 08 0e 08 0e 08 0e 08
->2aa9	08 01 01 08 08 08 06 08			.byte	$08, $01, $01, $08, $08, $08, $06, $08, $08, $08, $08, $08, $08, $0E, $0E, $08, $0E, $0E, $08, $08, $08, $08, $0E, $0E, $08, $0E, $08, $08, $08, $0E, $0E, $08, $0E, $0E, $08, $08, $08, $01, $01, $08
->2ab1	08 08 08 08 08 0e 0e 08 0e 0e 08 08 08 08 0e 0e
->2ac1	08 0e 08 08 08 0e 0e 08 0e 0e 08 08 08 01 01 08
->2ad1	08 01 01 08 08 08 06 08			.byte	$08, $01, $01, $08, $08, $08, $06, $08, $08, $0E, $0E, $08, $08, $08, $0E, $08, $0E, $0E, $08, $08, $08, $08, $0E, $0E, $0E, $0E, $08, $08, $08, $0E, $0E, $08, $0E, $0E, $08, $08, $08, $01, $01, $08
->2ad9	08 0e 0e 08 08 08 0e 08 0e 0e 08 08 08 08 0e 0e
->2ae9	0e 0e 08 08 08 0e 0e 08 0e 0e 08 08 08 01 01 08
->2af9	08 06 08 06 08 06 08 08			.byte	$08, $06, $08, $06, $08, $06, $08, $08, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08
->2b01	08 0e 08 0e 08 0e 08 0e 08 0e 08 0e 0e 08 0e 08
->2b11	0e 08 0e 08 0e 08 0e 08 0e 08 0e 08 0e 08 0e 08
->2b21	08 08 08 08 08 08 08 08			.byte	$08, $08, $08, $08, $08, $08, $08, $08, $08, $0E, $0E, $08, $08, $08, $08, $08, $0E, $0E, $08, $08, $08, $08, $0E, $0E, $08, $08, $08, $08, $08, $0E, $0E, $08, $08, $08, $0E, $0E, $08, $08, $08, $08
->2b29	08 0e 0e 08 08 08 08 08 0e 0e 08 08 08 08 0e 0e
->2b39	08 08 08 08 08 0e 0e 08 08 08 0e 0e 08 08 08 08
->2b49	08 0e 08 0e 08 0e 08 0e			.byte	$08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $0E, $08, $0E, $08, $0E, $08, $08, $06, $08, $0E, $08, $0E, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08
->2b51	08 0e 08 0e 08 0e 0e 08 0e 08 0e 08 08 06 08 0e
->2b61	08 0e 0e 08 0e 08 0e 08 0e 08 0e 08 0e 08 0e 08
->2b71	08 0e 0e 08 08 08 08 08			.byte	$08, $0E, $0E, $08, $08, $08, $08, $08, $08, $0E, $0E, $08, $08, $08, $0E, $08, $0E, $0E, $08, $08, $08, $08, $0E, $0E, $08, $0E, $08, $08, $08, $0E, $0E, $08, $0E, $0E, $08, $08, $08, $08, $0E, $08
->2b79	08 0e 0e 08 08 08 0e 08 0e 0e 08 08 08 08 0e 0e
->2b89	08 0e 08 08 08 0e 0e 08 0e 0e 08 08 08 08 0e 08
->2b99	08 0e 0e 08 08 08 0e 08			.byte	$08, $0E, $0E, $08, $08, $08, $0E, $08, $08, $0E, $0E, $08, $08, $08, $0E, $08, $0E, $0E, $08, $08, $08, $08, $0E, $0E, $0E, $0E, $08, $08, $08, $0E, $0E, $08, $0E, $0E, $08, $08, $08, $0E, $0E, $08
->2ba1	08 0e 0e 08 08 08 0e 08 0e 0e 08 08 08 08 0e 0e
->2bb1	0e 0e 08 08 08 0e 0e 08 0e 0e 08 08 08 0e 0e 08
->2bc1	08 0e 08 0e 08 0e 08 08			.byte	$08, $0E, $08, $0E, $08, $0E, $08, $08, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08
->2bc9	08 0e 08 0e 08 0e 08 0e 08 0e 08 0e 0e 08 0e 08
->2bd9	0e 08 0e 08 0e 08 0e 08 0e 08 0e 08 0e 08 0e 08
->2be9	08 08 08 08 08 08 08 08			.byte	$08, $08, $08, $08, $08, $08, $08, $08, $08, $0E, $0E, $08, $08, $08, $08, $08, $0E, $0E, $08, $08, $08, $08, $0E, $0E, $08, $08, $08, $08, $08, $0E, $0E, $08, $08, $08, $0E, $0E, $08, $08, $08, $08
->2bf1	08 0e 0e 08 08 08 08 08 0e 0e 08 08 08 08 0e 0e
->2c01	08 08 08 08 08 0e 0e 08 08 08 0e 0e 08 08 08 08
->2c11	08 0e 08 0e 08 0e 08 0e			.byte	$08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $08, $08, $08, $08, $08, $0E, $08, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08
->2c19	08 0e 0e 08 0e 08 0e 08 0e 08 08 08 08 08 08 0e
->2c29	08 08 0e 08 0e 08 0e 08 0e 08 0e 08 0e 08 0e 08
->2c39	08 0e 0e 08 08 08 0e 08			.byte	$08, $0E, $0E, $08, $08, $08, $0E, $08, $08, $0E, $0E, $08, $08, $08, $0E, $08, $0E, $08, $08, $08, $08, $08, $08, $08, $08, $08, $0E, $08, $08, $08, $0E, $08, $0E, $08, $08, $08, $08, $0E, $0E, $08
->2c41	08 0e 0e 08 08 08 0e 08 0e 08 08 08 08 08 08 08
->2c51	08 08 0e 08 08 08 0e 08 0e 08 08 08 08 0e 0e 08
->2c61	08 0e 0e 08 08 08 0e 08			.byte	$08, $0E, $0E, $08, $08, $08, $0E, $08, $08, $0E, $0E, $08, $08, $08, $0E, $08, $0E, $0E, $08, $08, $08, $08, $0E, $0E, $0E, $08, $0E, $08, $08, $08, $0E, $08, $0E, $0E, $08, $08, $08, $0E, $0E, $08
->2c69	08 0e 0e 08 08 08 0e 08 0e 0e 08 08 08 08 0e 0e
->2c79	0e 08 0e 08 08 08 0e 08 0e 0e 08 08 08 0e 0e 08
->2c89	08 0e 08 0e 08 0e 08 08			.byte	$08, $0E, $08, $0E, $08, $0E, $08, $08, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08
->2c91	08 0e 08 0e 08 0e 08 0e 08 0e 08 08 08 08 08 08
->2ca1	08 08 08 08 08 08 0e 08 0e 08 0e 08 0e 08 0e 08
->2cb1	08 08 08 08 08 08 08 08			.byte	$08, $08, $08, $08, $08, $08, $08, $08, $08, $0E, $0E, $08, $08, $08, $08, $08, $0E, $0E, $08, $08, $08, $08, $0E, $08, $08, $08, $08, $08, $08, $0E, $0E, $08, $08, $08, $0E, $0E, $08, $08, $08, $08
->2cb9	08 0e 0e 08 08 08 08 08 0e 0e 08 08 08 08 0e 08
->2cc9	08 08 08 08 08 0e 0e 08 08 08 0e 0e 08 08 08 08
->2cd9	08 0e 08 0e 08 0e 08 0e			.byte	$08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $0E, $08, $0E, $08, $0E, $0E, $08, $06, $08, $0E, $08, $08, $0E, $08, $08, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08
->2ce1	08 0e 08 0e 08 0e 0e 08 0e 08 0e 0e 08 06 08 0e
->2cf1	08 08 0e 08 08 08 0e 08 0e 08 0e 08 0e 08 0e 08
->2d01	08 01 01 08 08 08 0e 08			.byte	$08, $01, $01, $08, $08, $08, $0E, $08, $08, $0E, $0E, $08, $08, $08, $0E, $08, $0E, $0E, $08, $08, $08, $08, $0E, $0E, $08, $08, $0E, $08, $08, $08, $0E, $08, $0E, $0E, $08, $08, $08, $01, $01, $08
->2d09	08 0e 0e 08 08 08 0e 08 0e 0e 08 08 08 08 0e 0e
->2d19	08 08 0e 08 08 08 0e 08 0e 0e 08 08 08 01 01 08
->2d29	08 01 01 08 08 08 0e 08			.byte	$08, $01, $01, $08, $08, $08, $0E, $08, $08, $0E, $0E, $08, $08, $08, $0E, $08, $0E, $0E, $08, $08, $08, $08, $0E, $0E, $0E, $08, $0E, $08, $08, $08, $0E, $08, $0E, $0E, $08, $08, $08, $01, $01, $08
->2d31	08 0e 0e 08 08 08 0e 08 0e 0e 08 08 08 08 0e 0e
->2d41	0e 08 0e 08 08 08 0e 08 0e 0e 08 08 08 01 01 08
->2d51	08 08 08 0e 08 0e 08 08			.byte	$08, $08, $08, $0E, $08, $0E, $08, $08, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $08, $08, $0E, $06, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08
->2d59	08 0e 08 0e 08 0e 08 0e 08 08 08 0e 06 08 0e 08
->2d69	0e 08 0e 08 0e 08 0e 08 0e 08 0e 08 0e 08 0e 08
->2d79	08 08 08 08 08 08 08 08			.byte	$08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $06, $06, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08
->2d81	08 08 08 08 08 08 08 08 08 08 08 06 06 08 08 08
->2d91	08 08 08 08 08 08 08 08 08 08 08 08 08 08 08 08
->2da1	00 00 00 00 00 00 00 00			.byte	$00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
->2da9	00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
->2db9	00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
->2dc9	05 05 05 05 05 05 05 05			.byte	$05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05
->2dd1	05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05
->2de1	05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05
->2df1	05 05 05 05 05 05 05 05			.byte	$05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05
->2df9	05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05
->2e09	05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05
->2e19	00 00 00 00 00 00 00 00			.byte	$00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
->2e21	00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
->2e31	00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+.3800					char_data:
+>3800	3c 66 6e 6e 60 62 3c 00			.byte	$3C, $66, $6E, $6E, $60, $62, $3C, $00
+>3808	18 3c 66 7e 66 66 66 00			.byte	$18, $3C, $66, $7E, $66, $66, $66, $00
+>3810	7c 66 66 7c 66 66 7c 00			.byte	$7C, $66, $66, $7C, $66, $66, $7C, $00
+>3818	3c 66 60 60 60 66 3c 00			.byte	$3C, $66, $60, $60, $60, $66, $3C, $00
+>3820	78 6c 66 66 66 6c 78 00			.byte	$78, $6C, $66, $66, $66, $6C, $78, $00
+>3828	7e 60 60 78 60 60 7e 00			.byte	$7E, $60, $60, $78, $60, $60, $7E, $00
+>3830	7e 60 60 78 60 60 60 00			.byte	$7E, $60, $60, $78, $60, $60, $60, $00
+>3838	3c 66 60 6e 66 66 3c 00			.byte	$3C, $66, $60, $6E, $66, $66, $3C, $00
+>3840	66 66 66 7e 66 66 66 00			.byte	$66, $66, $66, $7E, $66, $66, $66, $00
+>3848	3c 18 18 18 18 18 3c 00			.byte	$3C, $18, $18, $18, $18, $18, $3C, $00
+>3850	1e 0c 0c 0c 0c 6c 38 00			.byte	$1E, $0C, $0C, $0C, $0C, $6C, $38, $00
+>3858	66 6c 78 70 78 6c 66 00			.byte	$66, $6C, $78, $70, $78, $6C, $66, $00
+>3860	60 60 60 60 60 60 7e 00			.byte	$60, $60, $60, $60, $60, $60, $7E, $00
+>3868	63 77 7f 6b 63 63 63 00			.byte	$63, $77, $7F, $6B, $63, $63, $63, $00
+>3870	66 76 7e 7e 6e 66 66 00			.byte	$66, $76, $7E, $7E, $6E, $66, $66, $00
+>3878	3c 66 66 66 66 66 3c 00			.byte	$3C, $66, $66, $66, $66, $66, $3C, $00
+>3880	7c 66 66 7c 60 60 60 00			.byte	$7C, $66, $66, $7C, $60, $60, $60, $00
+>3888	3c 66 66 66 66 3c 0e 00			.byte	$3C, $66, $66, $66, $66, $3C, $0E, $00
+>3890	7c 66 66 7c 78 6c 66 00			.byte	$7C, $66, $66, $7C, $78, $6C, $66, $00
+>3898	3c 66 60 3c 06 66 3c 00			.byte	$3C, $66, $60, $3C, $06, $66, $3C, $00
+>38a0	7e 18 18 18 18 18 18 00			.byte	$7E, $18, $18, $18, $18, $18, $18, $00
+>38a8	66 66 66 66 66 66 3c 00			.byte	$66, $66, $66, $66, $66, $66, $3C, $00
+>38b0	66 66 66 66 66 3c 18 00			.byte	$66, $66, $66, $66, $66, $3C, $18, $00
+>38b8	63 63 63 6b 7f 77 63 00			.byte	$63, $63, $63, $6B, $7F, $77, $63, $00
+>38c0	66 66 3c 18 3c 66 66 00			.byte	$66, $66, $3C, $18, $3C, $66, $66, $00
+>38c8	66 66 66 3c 18 18 18 00			.byte	$66, $66, $66, $3C, $18, $18, $18, $00
+>38d0	7e 06 0c 18 30 60 7e 00			.byte	$7E, $06, $0C, $18, $30, $60, $7E, $00
+>38d8	3c 30 30 30 30 30 3c 00			.byte	$3C, $30, $30, $30, $30, $30, $3C, $00
+>38e0	0c 12 30 7c 30 62 fc 00			.byte	$0C, $12, $30, $7C, $30, $62, $FC, $00
+>38e8	3c 0c 0c 0c 0c 0c 3c 00			.byte	$3C, $0C, $0C, $0C, $0C, $0C, $3C, $00
+>38f0	00 18 3c 7e 18 18 18 18			.byte	$00, $18, $3C, $7E, $18, $18, $18, $18
+>38f8	00 10 30 7f 7f 30 10 00			.byte	$00, $10, $30, $7F, $7F, $30, $10, $00
+>3900	00 00 00 00 00 00 00 00			.byte	$00, $00, $00, $00, $00, $00, $00, $00
+>3908	18 18 18 18 00 00 18 00			.byte	$18, $18, $18, $18, $00, $00, $18, $00
+>3910	66 66 66 00 00 00 00 00			.byte	$66, $66, $66, $00, $00, $00, $00, $00
+>3918	66 66 ff 66 ff 66 66 00			.byte	$66, $66, $FF, $66, $FF, $66, $66, $00
+>3920	18 3e 60 3c 06 7c 18 00			.byte	$18, $3E, $60, $3C, $06, $7C, $18, $00
+>3928	62 66 0c 18 30 66 52 00			.byte	$62, $66, $0C, $18, $30, $66, $52, $00
+>3930	3c 66 3c 38 67 66 3f 00			.byte	$3C, $66, $3C, $38, $67, $66, $3F, $00
+>3938	06 0c 18 00 00 00 00 00			.byte	$06, $0C, $18, $00, $00, $00, $00, $00
+>3940	0c 18 30 30 30 18 0c 00			.byte	$0C, $18, $30, $30, $30, $18, $0C, $00
+>3948	30 18 0c 0c 0c 18 30 00			.byte	$30, $18, $0C, $0C, $0C, $18, $30, $00
+>3950	00 66 3c ff 3c 66 00 00			.byte	$00, $66, $3C, $FF, $3C, $66, $00, $00
+>3958	00 18 18 7e 18 18 00 00			.byte	$00, $18, $18, $7E, $18, $18, $00, $00
+>3960	00 00 00 00 00 18 18 30			.byte	$00, $00, $00, $00, $00, $18, $18, $30
+>3968	00 00 00 7e 00 00 00 00			.byte	$00, $00, $00, $7E, $00, $00, $00, $00
+>3970	00 00 00 00 00 18 18 00			.byte	$00, $00, $00, $00, $00, $18, $18, $00
+>3978	00 03 06 0c 18 30 60 00			.byte	$00, $03, $06, $0C, $18, $30, $60, $00
+>3980	3c 66 6e 76 66 66 3c 00			.byte	$3C, $66, $6E, $76, $66, $66, $3C, $00
+>3988	18 18 38 18 18 18 7e 00			.byte	$18, $18, $38, $18, $18, $18, $7E, $00
+>3990	3c 66 06 0c 30 60 7e 00			.byte	$3C, $66, $06, $0C, $30, $60, $7E, $00
+>3998	3c 66 06 1c 06 66 3c 00			.byte	$3C, $66, $06, $1C, $06, $66, $3C, $00
+>39a0	06 0e 1e 66 7f 06 06 00			.byte	$06, $0E, $1E, $66, $7F, $06, $06, $00
+>39a8	7e 60 7c 06 06 66 3c 00			.byte	$7E, $60, $7C, $06, $06, $66, $3C, $00
+>39b0	3c 66 60 7c 66 66 3c 00			.byte	$3C, $66, $60, $7C, $66, $66, $3C, $00
+>39b8	7e 66 0c 18 18 18 18 00			.byte	$7E, $66, $0C, $18, $18, $18, $18, $00
+>39c0	3c 66 66 3c 66 66 3c 00			.byte	$3C, $66, $66, $3C, $66, $66, $3C, $00
+>39c8	3c 66 66 3e 06 66 3c 00			.byte	$3C, $66, $66, $3E, $06, $66, $3C, $00
+>39d0	00 00 18 00 00 18 00 00			.byte	$00, $00, $18, $00, $00, $18, $00, $00
+>39d8	00 00 18 00 00 18 18 30			.byte	$00, $00, $18, $00, $00, $18, $18, $30
+>39e0	0e 18 30 60 30 18 0e 00			.byte	$0E, $18, $30, $60, $30, $18, $0E, $00
+>39e8	00 00 7e 00 7e 00 00 00			.byte	$00, $00, $7E, $00, $7E, $00, $00, $00
+>39f0	70 18 0c 06 0c 18 70 00			.byte	$70, $18, $0C, $06, $0C, $18, $70, $00
+>39f8	3c 66 06 0c 18 00 18 00			.byte	$3C, $66, $06, $0C, $18, $00, $18, $00
+>3a00	00 00 00 ff ff 00 00 00			.byte	$00, $00, $00, $FF, $FF, $00, $00, $00
+>3a08	08 1c 3e 7f 7f 1c 3e 00			.byte	$08, $1C, $3E, $7F, $7F, $1C, $3E, $00
+>3a10	18 18 18 18 18 18 18 18			.byte	$18, $18, $18, $18, $18, $18, $18, $18
+>3a18	00 00 00 ff ff 00 00 00			.byte	$00, $00, $00, $FF, $FF, $00, $00, $00
+>3a20	00 00 ff ff 00 00 00 00			.byte	$00, $00, $FF, $FF, $00, $00, $00, $00
+>3a28	00 ff ff 00 00 00 00 00			.byte	$00, $FF, $FF, $00, $00, $00, $00, $00
+>3a30	00 00 00 00 ff ff 00 00			.byte	$00, $00, $00, $00, $FF, $FF, $00, $00
+>3a38	30 30 30 30 30 30 30 30			.byte	$30, $30, $30, $30, $30, $30, $30, $30
+>3a40	0c 0c 0c 0c 0c 0c 0c 0c			.byte	$0C, $0C, $0C, $0C, $0C, $0C, $0C, $0C
+>3a48	00 00 00 e0 f0 38 18 18			.byte	$00, $00, $00, $E0, $F0, $38, $18, $18
+>3a50	18 18 1c 0f 07 00 00 00			.byte	$18, $18, $1C, $0F, $07, $00, $00, $00
+>3a58	18 18 38 f0 e0 00 00 00			.byte	$18, $18, $38, $F0, $E0, $00, $00, $00
+>3a60	c0 c0 c0 c0 c0 c0 ff ff			.byte	$C0, $C0, $C0, $C0, $C0, $C0, $FF, $FF
+>3a68	c0 e0 70 38 1c 0e 07 03			.byte	$C0, $E0, $70, $38, $1C, $0E, $07, $03
+>3a70	03 07 0e 1c 38 70 e0 c0			.byte	$03, $07, $0E, $1C, $38, $70, $E0, $C0
+>3a78	ff ff c0 c0 c0 c0 c0 c0			.byte	$FF, $FF, $C0, $C0, $C0, $C0, $C0, $C0
+>3a80	ff ff 03 03 03 03 03 03			.byte	$FF, $FF, $03, $03, $03, $03, $03, $03
+>3a88	00 3c 7e 7e 7e 7e 3c 00			.byte	$00, $3C, $7E, $7E, $7E, $7E, $3C, $00
+>3a90	00 00 00 00 00 ff ff 00			.byte	$00, $00, $00, $00, $00, $FF, $FF, $00
+>3a98	36 7f 7f 7f 3e 1c 08 00			.byte	$36, $7F, $7F, $7F, $3E, $1C, $08, $00
+>3aa0	60 60 60 60 60 60 60 60			.byte	$60, $60, $60, $60, $60, $60, $60, $60
+>3aa8	00 00 00 07 0f 1c 18 18			.byte	$00, $00, $00, $07, $0F, $1C, $18, $18
+>3ab0	c3 e7 7e 3c 3c 7e e7 c3			.byte	$C3, $E7, $7E, $3C, $3C, $7E, $E7, $C3
+>3ab8	00 3c 7e 66 66 7e 3c 00			.byte	$00, $3C, $7E, $66, $66, $7E, $3C, $00
+>3ac0	18 18 66 66 18 18 3c 00			.byte	$18, $18, $66, $66, $18, $18, $3C, $00
+>3ac8	06 06 06 06 06 06 06 06			.byte	$06, $06, $06, $06, $06, $06, $06, $06
+>3ad0	08 1c 3e 7f 3e 1c 08 00			.byte	$08, $1C, $3E, $7F, $3E, $1C, $08, $00
+>3ad8	18 18 18 ff ff 18 18 18			.byte	$18, $18, $18, $FF, $FF, $18, $18, $18
+>3ae0	c0 c0 30 30 c0 c0 30 30			.byte	$C0, $C0, $30, $30, $C0, $C0, $30, $30
+>3ae8	18 18 18 18 18 18 18 18			.byte	$18, $18, $18, $18, $18, $18, $18, $18
+>3af0	00 00 03 3e 76 36 36 00			.byte	$00, $00, $03, $3E, $76, $36, $36, $00
+>3af8	ff 7f 3f 1f 0f 07 03 01			.byte	$FF, $7F, $3F, $1F, $0F, $07, $03, $01
+>3b00	00 00 00 00 00 00 00 00			.byte	$00, $00, $00, $00, $00, $00, $00, $00
+>3b08	f0 f0 f0 f0 f0 f0 f0 f0			.byte	$F0, $F0, $F0, $F0, $F0, $F0, $F0, $F0
+>3b10	00 00 00 00 ff ff ff ff			.byte	$00, $00, $00, $00, $FF, $FF, $FF, $FF
+>3b18	ff 00 00 00 00 00 00 00			.byte	$FF, $00, $00, $00, $00, $00, $00, $00
+>3b20	00 00 00 00 00 00 00 ff			.byte	$00, $00, $00, $00, $00, $00, $00, $FF
+>3b28	c0 c0 c0 c0 c0 c0 c0 c0			.byte	$C0, $C0, $C0, $C0, $C0, $C0, $C0, $C0
+>3b30	cc cc 33 33 cc cc 33 33			.byte	$CC, $CC, $33, $33, $CC, $CC, $33, $33
+>3b38	03 03 03 03 03 03 03 03			.byte	$03, $03, $03, $03, $03, $03, $03, $03
+>3b40	00 00 00 00 cc cc 33 33			.byte	$00, $00, $00, $00, $CC, $CC, $33, $33
+>3b48	ff fe fc f8 f0 e0 c0 80			.byte	$FF, $FE, $FC, $F8, $F0, $E0, $C0, $80
+>3b50	03 03 03 03 03 03 03 03			.byte	$03, $03, $03, $03, $03, $03, $03, $03
+>3b58	18 18 18 1f 1f 18 18 18			.byte	$18, $18, $18, $1F, $1F, $18, $18, $18
+>3b60	00 00 00 00 0f 0f 0f 0f			.byte	$00, $00, $00, $00, $0F, $0F, $0F, $0F
+>3b68	18 18 18 1f 1f 00 00 00			.byte	$18, $18, $18, $1F, $1F, $00, $00, $00
+>3b70	00 00 00 f8 f8 18 18 18			.byte	$00, $00, $00, $F8, $F8, $18, $18, $18
+>3b78	00 00 00 00 00 00 ff ff			.byte	$00, $00, $00, $00, $00, $00, $FF, $FF
+>3b80	00 00 00 1f 1f 18 18 18			.byte	$00, $00, $00, $1F, $1F, $18, $18, $18
+>3b88	18 18 18 ff ff 00 00 00			.byte	$18, $18, $18, $FF, $FF, $00, $00, $00
+>3b90	00 00 00 ff ff 18 18 18			.byte	$00, $00, $00, $FF, $FF, $18, $18, $18
+>3b98	18 18 18 f8 f8 18 18 18			.byte	$18, $18, $18, $F8, $F8, $18, $18, $18
+>3ba0	c0 c0 c0 c0 c0 c0 c0 c0			.byte	$C0, $C0, $C0, $C0, $C0, $C0, $C0, $C0
+>3ba8	e0 e0 e0 e0 e0 e0 e0 e0			.byte	$E0, $E0, $E0, $E0, $E0, $E0, $E0, $E0
+>3bb0	07 07 07 07 07 07 07 07			.byte	$07, $07, $07, $07, $07, $07, $07, $07
+>3bb8	ff ff 00 00 00 00 00 00			.byte	$FF, $FF, $00, $00, $00, $00, $00, $00
+>3bc0	ff ff ff 00 00 00 00 00			.byte	$FF, $FF, $FF, $00, $00, $00, $00, $00
+>3bc8	00 00 00 00 00 ff ff ff			.byte	$00, $00, $00, $00, $00, $FF, $FF, $FF
+>3bd0	03 03 03 03 03 03 ff ff			.byte	$03, $03, $03, $03, $03, $03, $FF, $FF
+>3bd8	00 00 00 00 f0 f0 f0 f0			.byte	$00, $00, $00, $00, $F0, $F0, $F0, $F0
+>3be0	0f 0f 0f 0f 00 00 00 00			.byte	$0F, $0F, $0F, $0F, $00, $00, $00, $00
+>3be8	18 18 18 f8 f8 00 00 00			.byte	$18, $18, $18, $F8, $F8, $00, $00, $00
+>3bf0	f0 f0 f0 f0 00 00 00 00			.byte	$F0, $F0, $F0, $F0, $00, $00, $00, $00
+>3bf8	f0 f0 f0 f0 0f 0f 0f 0f			.byte	$F0, $F0, $F0, $F0, $0F, $0F, $0F, $0F
+>3c00	c3 99 91 91 9f 99 c3 ff			.byte	$C3, $99, $91, $91, $9F, $99, $C3, $FF
+>3c08	e7 c3 99 81 99 99 99 ff			.byte	$E7, $C3, $99, $81, $99, $99, $99, $FF
+>3c10	83 99 99 83 99 99 83 ff			.byte	$83, $99, $99, $83, $99, $99, $83, $FF
+>3c18	c3 99 9f 9f 9f 99 c3 ff			.byte	$C3, $99, $9F, $9F, $9F, $99, $C3, $FF
+>3c20	87 93 99 99 99 93 87 ff			.byte	$87, $93, $99, $99, $99, $93, $87, $FF
+>3c28	81 9f 9f 87 9f 9f 81 ff			.byte	$81, $9F, $9F, $87, $9F, $9F, $81, $FF
+>3c30	81 9f 9f 87 9f 9f 9f ff			.byte	$81, $9F, $9F, $87, $9F, $9F, $9F, $FF
+>3c38	c3 99 9f 91 99 99 c3 ff			.byte	$C3, $99, $9F, $91, $99, $99, $C3, $FF
+>3c40	99 99 99 81 99 99 99 ff			.byte	$99, $99, $99, $81, $99, $99, $99, $FF
+>3c48	c3 e7 e7 e7 e7 e7 c3 ff			.byte	$C3, $E7, $E7, $E7, $E7, $E7, $C3, $FF
+>3c50	e1 f3 f3 f3 f3 93 c7 ff			.byte	$E1, $F3, $F3, $F3, $F3, $93, $C7, $FF
+>3c58	99 93 87 8f 87 93 99 ff			.byte	$99, $93, $87, $8F, $87, $93, $99, $FF
+>3c60	9f 9f 9f 9f 9f 9f 81 ff			.byte	$9F, $9F, $9F, $9F, $9F, $9F, $81, $FF
+>3c68	9c 88 80 94 9c 9c 9c ff			.byte	$9C, $88, $80, $94, $9C, $9C, $9C, $FF
+>3c70	99 89 81 81 91 99 99 ff			.byte	$99, $89, $81, $81, $91, $99, $99, $FF
+>3c78	c3 99 99 99 99 99 c3 ff			.byte	$C3, $99, $99, $99, $99, $99, $C3, $FF
+>3c80	83 99 99 83 9f 9f 9f ff			.byte	$83, $99, $99, $83, $9F, $9F, $9F, $FF
+>3c88	c3 99 99 99 99 c3 f1 ff			.byte	$C3, $99, $99, $99, $99, $C3, $F1, $FF
+>3c90	83 99 99 83 87 93 99 ff			.byte	$83, $99, $99, $83, $87, $93, $99, $FF
+>3c98	c3 99 9f c3 f9 99 c3 ff			.byte	$C3, $99, $9F, $C3, $F9, $99, $C3, $FF
+>3ca0	81 e7 e7 e7 e7 e7 e7 ff			.byte	$81, $E7, $E7, $E7, $E7, $E7, $E7, $FF
+>3ca8	99 99 99 99 99 99 c3 ff			.byte	$99, $99, $99, $99, $99, $99, $C3, $FF
+>3cb0	99 99 99 99 99 c3 e7 ff			.byte	$99, $99, $99, $99, $99, $C3, $E7, $FF
+>3cb8	9c 9c 9c 94 80 88 9c ff			.byte	$9C, $9C, $9C, $94, $80, $88, $9C, $FF
+>3cc0	99 99 c3 e7 c3 99 99 ff			.byte	$99, $99, $C3, $E7, $C3, $99, $99, $FF
+>3cc8	99 99 99 c3 e7 e7 e7 ff			.byte	$99, $99, $99, $C3, $E7, $E7, $E7, $FF
+>3cd0	81 f9 f3 e7 cf 9f 81 ff			.byte	$81, $F9, $F3, $E7, $CF, $9F, $81, $FF
+>3cd8	c3 cf cf cf cf cf c3 ff			.byte	$C3, $CF, $CF, $CF, $CF, $CF, $C3, $FF
+>3ce0	f3 ed cf 83 cf 9d 03 ff			.byte	$F3, $ED, $CF, $83, $CF, $9D, $03, $FF
+>3ce8	c3 f3 f3 f3 f3 f3 c3 ff			.byte	$C3, $F3, $F3, $F3, $F3, $F3, $C3, $FF
+>3cf0	ff e7 c3 81 e7 e7 e7 e7			.byte	$FF, $E7, $C3, $81, $E7, $E7, $E7, $E7
+>3cf8	ff ef cf 80 80 cf ef ff			.byte	$FF, $EF, $CF, $80, $80, $CF, $EF, $FF
+>3d00	ff ff ff ff ff ff ff ff			.byte	$FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF
+>3d08	e7 e7 e7 e7 ff ff e7 ff			.byte	$E7, $E7, $E7, $E7, $FF, $FF, $E7, $FF
+>3d10	99 99 99 ff ff ff ff ff			.byte	$99, $99, $99, $FF, $FF, $FF, $FF, $FF
+>3d18	99 99 00 99 00 99 99 ff			.byte	$99, $99, $00, $99, $00, $99, $99, $FF
+>3d20	e7 c1 9f c3 f9 83 e7 ff			.byte	$E7, $C1, $9F, $C3, $F9, $83, $E7, $FF
+>3d28	9d 99 f3 e7 cf 99 b9 ff			.byte	$9D, $99, $F3, $E7, $CF, $99, $B9, $FF
+>3d30	c3 99 c3 c7 98 99 c0 ff			.byte	$C3, $99, $C3, $C7, $98, $99, $C0, $FF
+>3d38	f9 f3 e7 ff ff ff ff ff			.byte	$F9, $F3, $E7, $FF, $FF, $FF, $FF, $FF
+>3d40	f3 e7 cf cf cf e7 f3 ff			.byte	$F3, $E7, $CF, $CF, $CF, $E7, $F3, $FF
+>3d48	cf e7 f3 f3 f3 e7 cf ff			.byte	$CF, $E7, $F3, $F3, $F3, $E7, $CF, $FF
+>3d50	ff 99 c3 00 c3 99 ff ff			.byte	$FF, $99, $C3, $00, $C3, $99, $FF, $FF
+>3d58	ff e7 e7 81 e7 e7 ff ff			.byte	$FF, $E7, $E7, $81, $E7, $E7, $FF, $FF
+>3d60	ff ff ff ff ff e7 e7 cf			.byte	$FF, $FF, $FF, $FF, $FF, $E7, $E7, $CF
+>3d68	ff ff ff 81 ff ff ff ff			.byte	$FF, $FF, $FF, $81, $FF, $FF, $FF, $FF
+>3d70	ff ff ff ff ff e7 e7 ff			.byte	$FF, $FF, $FF, $FF, $FF, $E7, $E7, $FF
+>3d78	ff fc f9 f3 e7 cf 9f ff			.byte	$FF, $FC, $F9, $F3, $E7, $CF, $9F, $FF
+>3d80	c3 99 91 89 99 99 c3 ff			.byte	$C3, $99, $91, $89, $99, $99, $C3, $FF
+>3d88	e7 e7 c7 e7 e7 e7 81 ff			.byte	$E7, $E7, $C7, $E7, $E7, $E7, $81, $FF
+>3d90	c3 99 f9 f3 cf 9f 81 ff			.byte	$C3, $99, $F9, $F3, $CF, $9F, $81, $FF
+>3d98	c3 99 f9 e3 f9 99 c3 ff			.byte	$C3, $99, $F9, $E3, $F9, $99, $C3, $FF
+>3da0	f9 f1 e1 99 80 f9 f9 ff			.byte	$F9, $F1, $E1, $99, $80, $F9, $F9, $FF
+>3da8	81 9f 83 f9 f9 99 c3 ff			.byte	$81, $9F, $83, $F9, $F9, $99, $C3, $FF
+>3db0	c3 99 9f 83 99 99 c3 ff			.byte	$C3, $99, $9F, $83, $99, $99, $C3, $FF
+>3db8	81 99 f3 e7 e7 e7 e7 ff			.byte	$81, $99, $F3, $E7, $E7, $E7, $E7, $FF
+>3dc0	c3 99 99 c3 99 99 c3 ff			.byte	$C3, $99, $99, $C3, $99, $99, $C3, $FF
+>3dc8	c3 99 99 c1 f9 99 c3 ff			.byte	$C3, $99, $99, $C1, $F9, $99, $C3, $FF
+>3dd0	ff ff e7 ff ff e7 ff ff			.byte	$FF, $FF, $E7, $FF, $FF, $E7, $FF, $FF
+>3dd8	ff ff e7 ff ff e7 e7 cf			.byte	$FF, $FF, $E7, $FF, $FF, $E7, $E7, $CF
+>3de0	f1 e7 cf 9f cf e7 f1 ff			.byte	$F1, $E7, $CF, $9F, $CF, $E7, $F1, $FF
+>3de8	ff ff 81 ff 81 ff ff ff			.byte	$FF, $FF, $81, $FF, $81, $FF, $FF, $FF
+>3df0	8f e7 f3 f9 f3 e7 8f ff			.byte	$8F, $E7, $F3, $F9, $F3, $E7, $8F, $FF
+>3df8	c3 99 f9 f3 e7 ff e7 ff			.byte	$C3, $99, $F9, $F3, $E7, $FF, $E7, $FF
+>3e00	ff ff ff 00 00 ff ff ff			.byte	$FF, $FF, $FF, $00, $00, $FF, $FF, $FF
+>3e08	00 00 00 00 00 00 00 00			.byte	$00, $00, $00, $00, $00, $00, $00, $00
+>3e10	e7 e7 e7 e7 e7 e7 e7 e7			.byte	$E7, $E7, $E7, $E7, $E7, $E7, $E7, $E7
+>3e18	ff ff ff 00 00 ff ff ff			.byte	$FF, $FF, $FF, $00, $00, $FF, $FF, $FF
+>3e20	ff ff 00 00 ff ff ff ff			.byte	$FF, $FF, $00, $00, $FF, $FF, $FF, $FF
+>3e28	ff 00 00 ff ff ff ff ff			.byte	$FF, $00, $00, $FF, $FF, $FF, $FF, $FF
+>3e30	ff ff ff ff 00 00 ff ff			.byte	$FF, $FF, $FF, $FF, $00, $00, $FF, $FF
+>3e38	cf cf cf cf cf cf cf cf			.byte	$CF, $CF, $CF, $CF, $CF, $CF, $CF, $CF
+>3e40	f3 f3 f3 f3 f3 f3 f3 f3			.byte	$F3, $F3, $F3, $F3, $F3, $F3, $F3, $F3
+>3e48	ff ff ff 1f 0f c7 e7 e7			.byte	$FF, $FF, $FF, $1F, $0F, $C7, $E7, $E7
+>3e50	e7 e7 e3 f0 f8 ff ff ff			.byte	$E7, $E7, $E3, $F0, $F8, $FF, $FF, $FF
+>3e58	e7 e7 c7 0f 1f ff ff ff			.byte	$E7, $E7, $C7, $0F, $1F, $FF, $FF, $FF
+>3e60	3f 3f 3f 3f 3f 3f 00 00			.byte	$3F, $3F, $3F, $3F, $3F, $3F, $00, $00
+>3e68	3f 1f 8f c7 e3 f1 f8 fc			.byte	$3F, $1F, $8F, $C7, $E3, $F1, $F8, $FC
+>3e70	fc f8 f1 e3 c7 8f 1f 3f			.byte	$FC, $F8, $F1, $E3, $C7, $8F, $1F, $3F
+>3e78	00 00 3f 3f 3f 3f 3f 3f			.byte	$00, $00, $3F, $3F, $3F, $3F, $3F, $3F
+>3e80	00 00 fc fc fc fc fc fc			.byte	$00, $00, $FC, $FC, $FC, $FC, $FC, $FC
+>3e88	00 00 ff ff ff ff 00 00			.byte	$00, $00, $FF, $FF, $FF, $FF, $00, $00
+>3e90	ff ff ff ff ff 00 00 ff			.byte	$FF, $FF, $FF, $FF, $FF, $00, $00, $FF
+>3e98	00 00 00 00 00 00 00 00			.byte	$00, $00, $00, $00, $00, $00, $00, $00
+>3ea0	9f 9f 9f 9f 9f 9f 9f 9f			.byte	$9F, $9F, $9F, $9F, $9F, $9F, $9F, $9F
+>3ea8	ff ff ff f8 f0 e3 e7 e7			.byte	$FF, $FF, $FF, $F8, $F0, $E3, $E7, $E7
+>3eb0	3c 18 81 c3 c3 81 18 3c			.byte	$3C, $18, $81, $C3, $C3, $81, $18, $3C
+>3eb8	00 00 00 00 00 00 00 00			.byte	$00, $00, $00, $00, $00, $00, $00, $00
+>3ec0	00 00 00 00 00 00 00 00			.byte	$00, $00, $00, $00, $00, $00, $00, $00
+>3ec8	f9 f9 f9 f9 f9 f9 f9 f9			.byte	$F9, $F9, $F9, $F9, $F9, $F9, $F9, $F9
+>3ed0	00 00 00 00 00 00 00 00			.byte	$00, $00, $00, $00, $00, $00, $00, $00
+>3ed8	e7 e7 e7 00 00 e7 e7 e7			.byte	$E7, $E7, $E7, $00, $00, $E7, $E7, $E7
+>3ee0	3f 3f cf cf 3f 3f cf cf			.byte	$3F, $3F, $CF, $CF, $3F, $3F, $CF, $CF
+>3ee8	e7 e7 e7 e7 e7 e7 e7 e7			.byte	$E7, $E7, $E7, $E7, $E7, $E7, $E7, $E7
+>3ef0	00 00 00 00 00 00 00 00			.byte	$00, $00, $00, $00, $00, $00, $00, $00
+>3ef8	00 80 c0 e0 f0 f8 fc fe			.byte	$00, $80, $C0, $E0, $F0, $F8, $FC, $FE
+>3f00	00 00 00 00 00 00 00 00			.byte	$00, $00, $00, $00, $00, $00, $00, $00
+>3f08	0f 0f 0f 0f 0f 0f 0f 0f			.byte	$0F, $0F, $0F, $0F, $0F, $0F, $0F, $0F
+>3f10	ff ff ff ff 00 00 00 00			.byte	$FF, $FF, $FF, $FF, $00, $00, $00, $00
+>3f18	00 ff ff ff ff ff ff ff			.byte	$00, $FF, $FF, $FF, $FF, $FF, $FF, $FF
+>3f20	ff ff ff ff ff ff ff 00			.byte	$FF, $FF, $FF, $FF, $FF, $FF, $FF, $00
+>3f28	3f 3f 3f 3f 3f 3f 3f 3f			.byte	$3F, $3F, $3F, $3F, $3F, $3F, $3F, $3F
+>3f30	33 33 cc cc 33 33 cc cc			.byte	$33, $33, $CC, $CC, $33, $33, $CC, $CC
+>3f38	fc fc fc fc fc fc fc fc			.byte	$FC, $FC, $FC, $FC, $FC, $FC, $FC, $FC
+>3f40	ff ff ff ff 33 33 cc cc			.byte	$FF, $FF, $FF, $FF, $33, $33, $CC, $CC
+>3f48	00 01 03 07 0f 1f 3f 7f			.byte	$00, $01, $03, $07, $0F, $1F, $3F, $7F
+>3f50	fc fc fc fc fc fc fc fc			.byte	$FC, $FC, $FC, $FC, $FC, $FC, $FC, $FC
+>3f58	e7 e7 e7 e0 e0 e7 e7 e7			.byte	$E7, $E7, $E7, $E0, $E0, $E7, $E7, $E7
+>3f60	ff ff ff ff f0 f0 f0 f0			.byte	$FF, $FF, $FF, $FF, $F0, $F0, $F0, $F0
+>3f68	e7 e7 e7 e0 e0 ff ff ff			.byte	$E7, $E7, $E7, $E0, $E0, $FF, $FF, $FF
+>3f70	ff ff ff 07 07 e7 e7 e7			.byte	$FF, $FF, $FF, $07, $07, $E7, $E7, $E7
+>3f78	ff ff ff ff ff ff 00 00			.byte	$FF, $FF, $FF, $FF, $FF, $FF, $00, $00
+>3f80	ff ff ff e0 e0 e7 e7 e7			.byte	$FF, $FF, $FF, $E0, $E0, $E7, $E7, $E7
+>3f88	e7 e7 e7 00 00 ff ff ff			.byte	$E7, $E7, $E7, $00, $00, $FF, $FF, $FF
+>3f90	ff ff ff 00 00 e7 e7 e7			.byte	$FF, $FF, $FF, $00, $00, $E7, $E7, $E7
+>3f98	e7 e7 e7 07 07 e7 e7 e7			.byte	$E7, $E7, $E7, $07, $07, $E7, $E7, $E7
+>3fa0	3f 3f 3f 3f 3f 3f 3f 3f			.byte	$3F, $3F, $3F, $3F, $3F, $3F, $3F, $3F
+>3fa8	1f 1f 1f 1f 1f 1f 1f 1f			.byte	$1F, $1F, $1F, $1F, $1F, $1F, $1F, $1F
+>3fb0	f8 f8 f8 f8 f8 f8 f8 f8			.byte	$F8, $F8, $F8, $F8, $F8, $F8, $F8, $F8
+>3fb8	00 00 ff ff ff ff ff ff			.byte	$00, $00, $FF, $FF, $FF, $FF, $FF, $FF
+>3fc0	00 00 00 ff ff ff ff ff			.byte	$00, $00, $00, $FF, $FF, $FF, $FF, $FF
+>3fc8	ff ff ff ff ff 00 00 00			.byte	$FF, $FF, $FF, $FF, $FF, $00, $00, $00
+>3fd0	fc fc fc fc fc fc 00 00			.byte	$FC, $FC, $FC, $FC, $FC, $FC, $00, $00
+>3fd8	ff ff ff ff 0f 0f 0f 0f			.byte	$FF, $FF, $FF, $FF, $0F, $0F, $0F, $0F
+>3fe0	f0 f0 f0 f0 ff ff ff ff			.byte	$F0, $F0, $F0, $F0, $FF, $FF, $FF, $FF
+>3fe8	e7 e7 e7 07 07 ff ff ff			.byte	$E7, $E7, $E7, $07, $07, $FF, $FF, $FF
+>3ff0	0f 0f 0f 0f ff ff ff ff			.byte	$0F, $0F, $0F, $0F, $FF, $FF, $FF, $FF
+>3ff8	0f 0f 0f 0f f0 f0 f0 f0			.byte	$0F, $0F, $0F, $0F, $F0, $F0, $F0, $F0
+.4000					scr_data:
+>4000	a0 ef ef ef ef ef ef ef			.byte	$A0, $EF, $EF, $EF, $EF, $EF, $EF, $EF, $EF, $EF, $EF, $EF, $EF, $EF, $EF, $A0, $EF, $EF, $EF, $A0, $A0, $EF, $EF, $EF, $A0, $EF, $EF, $EF, $EF, $EF, $EF, $EF, $EF, $EF, $EF, $EF, $EF, $EF, $EF, $A0
+>4008	ef ef ef ef ef ef ef a0 ef ef ef a0 a0 ef ef ef
+>4018	a0 ef ef ef ef ef ef ef ef ef ef ef ef ef ef a0
+>4028	a0 20 52 20 52 20 52 20			.byte	$A0, $20, $52, $20, $52, $20, $52, $20, $52, $20, $52, $20, $52, $20, $20, $A0, $20, $52, $20, $52, $52, $20, $52, $20, $A0, $A0, $20, $52, $A0, $52, $20, $52, $20, $52, $20, $52, $20, $52, $20, $A0
+>4030	52 20 52 20 52 20 20 a0 20 52 20 52 52 20 52 20
+>4040	a0 a0 20 52 a0 52 20 52 20 52 20 52 20 52 20 a0
+>4050	a0 6c 7b 6f 6f 6f a0 20			.byte	$A0, $6C, $7B, $6F, $6F, $6F, $A0, $20, $6F, $20, $20, $6F, $6F, $20, $20, $A0, $20, $20, $6F, $6F, $6F, $6F, $20, $20, $A0, $20, $20, $6F, $6F, $20, $20, $6F, $20, $20, $6F, $6F, $6F, $6C, $7B, $A0
+>4058	6f 20 20 6f 6f 20 20 a0 20 20 6f 6f 6f 6f 20 20
+>4068	a0 20 20 6f 6f 20 20 6f 20 20 6f 6f 6f 6c 7b a0
+>4078	a0 7c 7e 77 77 77 a0 20			.byte	$A0, $7C, $7E, $77, $77, $77, $A0, $20, $A0, $20, $20, $77, $77, $20, $20, $77, $20, $20, $77, $77, $77, $77, $20, $20, $20, $20, $20, $77, $77, $20, $20, $A0, $20, $20, $77, $77, $77, $7C, $7E, $A0
+>4080	a0 20 20 77 77 20 20 77 20 20 77 77 77 77 20 20
+>4090	20 20 20 77 77 20 20 a0 20 20 77 77 77 7c 7e a0
+>40a0	a0 20 45 a0 45 a0 45 20			.byte	$A0, $20, $45, $A0, $45, $A0, $45, $20, $A0, $20, $45, $20, $45, $20, $45, $20, $45, $20, $45, $20, $20, $45, $20, $45, $20, $45, $20, $45, $20, $45, $20, $A0, $20, $45, $20, $45, $20, $45, $20, $A0
+>40a8	a0 20 45 20 45 20 45 20 45 20 45 20 20 45 20 45
+>40b8	20 45 20 45 20 45 20 a0 20 45 20 45 20 45 20 a0
+>40c8	a0 d1 d1 d1 20 20 d1 d1			.byte	$A0, $D1, $D1, $D1, $20, $20, $D1, $D1, $EF, $20, $20, $D1, $D1, $D1, $D1, $F7, $20, $20, $D1, $D1, $D1, $D1, $20, $20, $F7, $D1, $D1, $D1, $D1, $20, $20, $EF, $D1, $D1, $20, $20, $D1, $D1, $D1, $A0
+>40d0	ef 20 20 d1 d1 d1 d1 f7 20 20 d1 d1 d1 d1 20 20
+>40e0	f7 d1 d1 d1 d1 20 20 ef d1 d1 20 20 d1 d1 d1 a0
+>40f0	a0 20 52 20 52 20 52 20			.byte	$A0, $20, $52, $20, $52, $20, $52, $20, $52, $20, $52, $20, $52, $20, $20, $A0, $20, $52, $20, $52, $52, $A0, $52, $20, $A0, $20, $20, $52, $20, $52, $20, $52, $20, $52, $20, $52, $20, $52, $20, $A0
+>40f8	52 20 52 20 52 20 20 a0 20 52 20 52 52 a0 52 20
+>4108	a0 20 20 52 20 52 20 52 20 52 20 52 20 52 20 a0
+>4118	a0 20 20 6f 6f 6f 20 20			.byte	$A0, $20, $20, $6F, $6F, $6F, $20, $20, $6F, $20, $20, $6F, $6F, $20, $20, $A0, $20, $20, $6F, $6F, $6F, $6F, $20, $20, $A0, $20, $20, $6F, $6F, $20, $20, $6F, $20, $20, $6F, $6F, $6F, $20, $20, $A0
+>4120	6f 20 20 6f 6f 20 20 a0 20 20 6f 6f 6f 6f 20 20
+>4130	a0 20 20 6f 6f 20 20 6f 20 20 6f 6f 6f 20 20 a0
+>4140	a0 20 20 77 77 77 20 20			.byte	$A0, $20, $20, $77, $77, $77, $20, $20, $A0, $20, $20, $77, $77, $20, $20, $77, $20, $20, $A0, $77, $77, $A0, $20, $20, $20, $20, $20, $77, $77, $20, $20, $A0, $20, $20, $77, $77, $77, $20, $20, $A0
+>4148	a0 20 20 77 77 20 20 77 20 20 a0 77 77 a0 20 20
+>4158	20 20 20 77 77 20 20 a0 20 20 77 77 77 20 20 a0
+>4168	a0 20 45 20 45 20 45 20			.byte	$A0, $20, $45, $20, $45, $20, $45, $20, $A0, $20, $45, $20, $45, $20, $45, $20, $45, $20, $A0, $20, $20, $A0, $20, $45, $20, $45, $20, $45, $20, $45, $20, $A0, $20, $45, $20, $45, $20, $45, $20, $A0
+>4170	a0 20 45 20 45 20 45 20 45 20 a0 20 20 a0 20 45
+>4180	20 45 20 45 20 45 20 a0 20 45 20 45 20 45 20 a0
+>4190	a0 d1 d1 d1 20 20 d1 d1			.byte	$A0, $D1, $D1, $D1, $20, $20, $D1, $D1, $EF, $20, $20, $D1, $D1, $D1, $D1, $F7, $20, $20, $A0, $F7, $F7, $A0, $20, $20, $F7, $D1, $D1, $D1, $D1, $20, $20, $EF, $D1, $D1, $20, $20, $D1, $D1, $D1, $A0
+>4198	ef 20 20 d1 d1 d1 d1 f7 20 20 a0 f7 f7 a0 20 20
+>41a8	f7 d1 d1 d1 d1 20 20 ef d1 d1 20 20 d1 d1 d1 a0
+>41b8	a0 20 52 20 52 20 52 20			.byte	$A0, $20, $52, $20, $52, $20, $52, $20, $52, $20, $20, $52, $20, $52, $20, $A0, $20, $52, $20, $52, $52, $20, $52, $20, $A0, $20, $20, $52, $20, $52, $20, $52, $20, $52, $20, $52, $20, $52, $20, $A0
+>41c0	52 20 20 52 20 52 20 a0 20 52 20 52 52 20 52 20
+>41d0	a0 20 20 52 20 52 20 52 20 52 20 52 20 52 20 a0
+>41e0	a0 20 20 6f 6f 6f 20 20			.byte	$A0, $20, $20, $6F, $6F, $6F, $20, $20, $6F, $20, $20, $6F, $6F, $20, $20, $A0, $20, $20, $6F, $6F, $6F, $6F, $20, $20, $A0, $20, $20, $6F, $6F, $20, $20, $6F, $20, $20, $6F, $6F, $6F, $20, $20, $A0
+>41e8	6f 20 20 6f 6f 20 20 a0 20 20 6f 6f 6f 6f 20 20
+>41f8	a0 20 20 6f 6f 20 20 6f 20 20 6f 6f 6f 20 20 a0
+>4208	a0 20 20 77 77 77 20 20			.byte	$A0, $20, $20, $77, $77, $77, $20, $20, $A0, $20, $20, $77, $77, $20, $20, $77, $20, $20, $77, $77, $77, $77, $20, $20, $20, $20, $20, $77, $77, $20, $20, $A0, $20, $20, $77, $77, $77, $20, $20, $A0
+>4210	a0 20 20 77 77 20 20 77 20 20 77 77 77 77 20 20
+>4220	20 20 20 77 77 20 20 a0 20 20 77 77 77 20 20 a0
+>4230	a0 20 45 20 45 20 45 20			.byte	$A0, $20, $45, $20, $45, $20, $45, $20, $A0, $20, $45, $20, $45, $20, $45, $20, $45, $20, $45, $20, $20, $45, $20, $45, $20, $45, $20, $45, $20, $45, $20, $A0, $20, $45, $20, $45, $20, $45, $20, $A0
+>4238	a0 20 45 20 45 20 45 20 45 20 45 20 20 45 20 45
+>4248	20 45 20 45 20 45 20 a0 20 45 20 45 20 45 20 a0
+>4258	a0 d1 d1 d1 20 20 d1 d1			.byte	$A0, $D1, $D1, $D1, $20, $20, $D1, $D1, $EF, $20, $20, $D1, $D1, $D1, $D1, $F7, $20, $20, $D1, $D1, $D1, $D1, $20, $20, $F7, $D1, $D1, $D1, $D1, $20, $20, $EF, $D1, $D1, $20, $20, $D1, $D1, $D1, $A0
+>4260	ef 20 20 d1 d1 d1 d1 f7 20 20 d1 d1 d1 d1 20 20
+>4270	f7 d1 d1 d1 d1 20 20 ef d1 d1 20 20 d1 d1 d1 a0
+>4280	a0 20 52 20 52 20 52 20			.byte	$A0, $20, $52, $20, $52, $20, $52, $20, $52, $20, $52, $20, $52, $20, $20, $A0, $20, $52, $20, $20, $52, $20, $52, $20, $A0, $20, $20, $52, $20, $52, $20, $52, $20, $52, $20, $52, $20, $52, $20, $A0
+>4288	52 20 52 20 52 20 20 a0 20 52 20 20 52 20 52 20
+>4298	a0 20 20 52 20 52 20 52 20 52 20 52 20 52 20 a0
+>42a8	a0 6c 7b 6f 6f 6f 20 20			.byte	$A0, $6C, $7B, $6F, $6F, $6F, $20, $20, $6F, $20, $20, $6F, $6F, $20, $20, $A0, $20, $20, $6F, $6F, $6F, $6F, $20, $20, $A0, $20, $20, $6F, $6F, $20, $20, $6F, $20, $20, $6F, $6F, $6F, $6C, $7B, $A0
+>42b0	6f 20 20 6f 6f 20 20 a0 20 20 6f 6f 6f 6f 20 20
+>42c0	a0 20 20 6f 6f 20 20 6f 20 20 6f 6f 6f 6c 7b a0
+>42d0	a0 7c 7e 77 77 77 20 20			.byte	$A0, $7C, $7E, $77, $77, $77, $20, $20, $A0, $20, $20, $77, $77, $20, $20, $77, $20, $20, $77, $77, $77, $77, $20, $20, $20, $20, $20, $77, $77, $20, $20, $A0, $20, $20, $77, $77, $77, $7C, $7E, $A0
+>42d8	a0 20 20 77 77 20 20 77 20 20 77 77 77 77 20 20
+>42e8	20 20 20 77 77 20 20 a0 20 20 77 77 77 7c 7e a0
+>42f8	a0 20 45 20 45 20 45 20			.byte	$A0, $20, $45, $20, $45, $20, $45, $20, $A0, $20, $45, $20, $45, $20, $45, $20, $45, $20, $45, $20, $A0, $45, $20, $45, $20, $45, $20, $45, $20, $45, $20, $A0, $20, $45, $20, $45, $20, $45, $20, $A0
+>4300	a0 20 45 20 45 20 45 20 45 20 45 20 a0 45 20 45
+>4310	20 45 20 45 20 45 20 a0 20 45 20 45 20 45 20 a0
+>4320	a0 f7 f7 f7 f7 f7 f7 f7			.byte	$A0, $F7, $F7, $F7, $F7, $F7, $F7, $F7, $A0, $F7, $F7, $F7, $F7, $F7, $F7, $F7, $F7, $F7, $F7, $A0, $A0, $F7, $F7, $F7, $F7, $F7, $F7, $F7, $F7, $F7, $F7, $A0, $F7, $F7, $F7, $F7, $F7, $F7, $F7, $A0
+>4328	a0 f7 f7 f7 f7 f7 f7 f7 f7 f7 f7 a0 a0 f7 f7 f7
+>4338	f7 f7 f7 f7 f7 f7 f7 a0 f7 f7 f7 f7 f7 f7 f7 a0
+>4348	a0 a0 a0 a0 a0 a0 a0 a0			.byte	$A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0
+>4350	a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0
+>4360	a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0
+>4370	a0 a0 a0 a0 a0 a0 a0 a0			.byte	$A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0
+>4378	a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0
+>4388	a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0
+>4398	a0 a0 a0 a0 a0 a0 a0 a0			.byte	$A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0
+>43a0	a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0
+>43b0	a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0
+>43c0	a0 a0 a0 a0 a0 a0 a0 a0			.byte	$A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0, $A0
+>43c8	a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0
+>43d8	a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0 a0
+.43e8					scr_color:
+>43e8	08 08 08 08 08 08 08 08			.byte	$08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $06, $06, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08
+>43f0	08 08 08 08 08 08 08 08 08 08 08 06 06 08 08 08
+>4400	08 08 08 08 08 08 08 08 08 08 08 08 08 08 08 08
+>4410	08 0e 08 0e 08 0e 08 0e			.byte	$08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $0E, $08, $0E, $08, $0E, $08, $08, $06, $08, $0E, $08, $06, $08, $08, $06, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08
+>4418	08 0e 08 0e 08 0e 0e 08 0e 08 0e 08 08 06 08 0e
+>4428	08 06 08 08 06 08 0e 08 0e 08 0e 08 0e 08 0e 08
+>4438	08 01 01 08 08 08 06 08			.byte	$08, $01, $01, $08, $08, $08, $06, $08, $08, $08, $08, $08, $08, $0E, $0E, $08, $0E, $0E, $08, $08, $08, $08, $0E, $0E, $08, $0E, $08, $08, $08, $0E, $0E, $08, $0E, $0E, $08, $08, $08, $01, $01, $08
+>4440	08 08 08 08 08 0e 0e 08 0e 0e 08 08 08 08 0e 0e
+>4450	08 0e 08 08 08 0e 0e 08 0e 0e 08 08 08 01 01 08
+>4460	08 01 01 08 08 08 06 08			.byte	$08, $01, $01, $08, $08, $08, $06, $08, $08, $0E, $0E, $08, $08, $08, $0E, $08, $0E, $0E, $08, $08, $08, $08, $0E, $0E, $0E, $0E, $08, $08, $08, $0E, $0E, $08, $0E, $0E, $08, $08, $08, $01, $01, $08
+>4468	08 0e 0e 08 08 08 0e 08 0e 0e 08 08 08 08 0e 0e
+>4478	0e 0e 08 08 08 0e 0e 08 0e 0e 08 08 08 01 01 08
+>4488	08 06 08 06 08 06 08 08			.byte	$08, $06, $08, $06, $08, $06, $08, $08, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08
+>4490	08 0e 08 0e 08 0e 08 0e 08 0e 08 0e 0e 08 0e 08
+>44a0	0e 08 0e 08 0e 08 0e 08 0e 08 0e 08 0e 08 0e 08
+>44b0	08 08 08 08 08 08 08 08			.byte	$08, $08, $08, $08, $08, $08, $08, $08, $08, $0E, $0E, $08, $08, $08, $08, $08, $0E, $0E, $08, $08, $08, $08, $0E, $0E, $08, $08, $08, $08, $08, $0E, $0E, $08, $08, $08, $0E, $0E, $08, $08, $08, $08
+>44b8	08 0e 0e 08 08 08 08 08 0e 0e 08 08 08 08 0e 0e
+>44c8	08 08 08 08 08 0e 0e 08 08 08 0e 0e 08 08 08 08
+>44d8	08 0e 08 0e 08 0e 08 0e			.byte	$08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $0E, $08, $0E, $08, $0E, $08, $08, $06, $08, $0E, $08, $0E, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08
+>44e0	08 0e 08 0e 08 0e 0e 08 0e 08 0e 08 08 06 08 0e
+>44f0	08 0e 0e 08 0e 08 0e 08 0e 08 0e 08 0e 08 0e 08
+>4500	08 0e 0e 08 08 08 08 08			.byte	$08, $0E, $0E, $08, $08, $08, $08, $08, $08, $0E, $0E, $08, $08, $08, $0E, $08, $0E, $0E, $08, $08, $08, $08, $0E, $0E, $08, $0E, $08, $08, $08, $0E, $0E, $08, $0E, $0E, $08, $08, $08, $08, $0E, $08
+>4508	08 0e 0e 08 08 08 0e 08 0e 0e 08 08 08 08 0e 0e
+>4518	08 0e 08 08 08 0e 0e 08 0e 0e 08 08 08 08 0e 08
+>4528	08 0e 0e 08 08 08 0e 08			.byte	$08, $0E, $0E, $08, $08, $08, $0E, $08, $08, $0E, $0E, $08, $08, $08, $0E, $08, $0E, $0E, $08, $08, $08, $08, $0E, $0E, $0E, $0E, $08, $08, $08, $0E, $0E, $08, $0E, $0E, $08, $08, $08, $0E, $0E, $08
+>4530	08 0e 0e 08 08 08 0e 08 0e 0e 08 08 08 08 0e 0e
+>4540	0e 0e 08 08 08 0e 0e 08 0e 0e 08 08 08 0e 0e 08
+>4550	08 0e 08 0e 08 0e 08 08			.byte	$08, $0E, $08, $0E, $08, $0E, $08, $08, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08
+>4558	08 0e 08 0e 08 0e 08 0e 08 0e 08 0e 0e 08 0e 08
+>4568	0e 08 0e 08 0e 08 0e 08 0e 08 0e 08 0e 08 0e 08
+>4578	08 08 08 08 08 08 08 08			.byte	$08, $08, $08, $08, $08, $08, $08, $08, $08, $0E, $0E, $08, $08, $08, $08, $08, $0E, $0E, $08, $08, $08, $08, $0E, $0E, $08, $08, $08, $08, $08, $0E, $0E, $08, $08, $08, $0E, $0E, $08, $08, $08, $08
+>4580	08 0e 0e 08 08 08 08 08 0e 0e 08 08 08 08 0e 0e
+>4590	08 08 08 08 08 0e 0e 08 08 08 0e 0e 08 08 08 08
+>45a0	08 0e 08 0e 08 0e 08 0e			.byte	$08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $08, $08, $08, $08, $08, $0E, $08, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08
+>45a8	08 0e 0e 08 0e 08 0e 08 0e 08 08 08 08 08 08 0e
+>45b8	08 08 0e 08 0e 08 0e 08 0e 08 0e 08 0e 08 0e 08
+>45c8	08 0e 0e 08 08 08 0e 08			.byte	$08, $0E, $0E, $08, $08, $08, $0E, $08, $08, $0E, $0E, $08, $08, $08, $0E, $08, $0E, $08, $08, $08, $08, $08, $08, $08, $08, $08, $0E, $08, $08, $08, $0E, $08, $0E, $08, $08, $08, $08, $0E, $0E, $08
+>45d0	08 0e 0e 08 08 08 0e 08 0e 08 08 08 08 08 08 08
+>45e0	08 08 0e 08 08 08 0e 08 0e 08 08 08 08 0e 0e 08
+>45f0	08 0e 0e 08 08 08 0e 08			.byte	$08, $0E, $0E, $08, $08, $08, $0E, $08, $08, $0E, $0E, $08, $08, $08, $0E, $08, $0E, $0E, $08, $08, $08, $08, $0E, $0E, $0E, $08, $0E, $08, $08, $08, $0E, $08, $0E, $0E, $08, $08, $08, $0E, $0E, $08
+>45f8	08 0e 0e 08 08 08 0e 08 0e 0e 08 08 08 08 0e 0e
+>4608	0e 08 0e 08 08 08 0e 08 0e 0e 08 08 08 0e 0e 08
+>4618	08 0e 08 0e 08 0e 08 08			.byte	$08, $0E, $08, $0E, $08, $0E, $08, $08, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08
+>4620	08 0e 08 0e 08 0e 08 0e 08 0e 08 08 08 08 08 08
+>4630	08 08 08 08 08 08 0e 08 0e 08 0e 08 0e 08 0e 08
+>4640	08 08 08 08 08 08 08 08			.byte	$08, $08, $08, $08, $08, $08, $08, $08, $08, $0E, $0E, $08, $08, $08, $08, $08, $0E, $0E, $08, $08, $08, $08, $0E, $08, $08, $08, $08, $08, $08, $0E, $0E, $08, $08, $08, $0E, $0E, $08, $08, $08, $08
+>4648	08 0e 0e 08 08 08 08 08 0e 0e 08 08 08 08 0e 08
+>4658	08 08 08 08 08 0e 0e 08 08 08 0e 0e 08 08 08 08
+>4668	08 0e 08 0e 08 0e 08 0e			.byte	$08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $0E, $08, $0E, $08, $0E, $0E, $08, $06, $08, $0E, $08, $08, $0E, $08, $08, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08
+>4670	08 0e 08 0e 08 0e 0e 08 0e 08 0e 0e 08 06 08 0e
+>4680	08 08 0e 08 08 08 0e 08 0e 08 0e 08 0e 08 0e 08
+>4690	08 01 01 08 08 08 0e 08			.byte	$08, $01, $01, $08, $08, $08, $0E, $08, $08, $0E, $0E, $08, $08, $08, $0E, $08, $0E, $0E, $08, $08, $08, $08, $0E, $0E, $08, $08, $0E, $08, $08, $08, $0E, $08, $0E, $0E, $08, $08, $08, $01, $01, $08
+>4698	08 0e 0e 08 08 08 0e 08 0e 0e 08 08 08 08 0e 0e
+>46a8	08 08 0e 08 08 08 0e 08 0e 0e 08 08 08 01 01 08
+>46b8	08 01 01 08 08 08 0e 08			.byte	$08, $01, $01, $08, $08, $08, $0E, $08, $08, $0E, $0E, $08, $08, $08, $0E, $08, $0E, $0E, $08, $08, $08, $08, $0E, $0E, $0E, $08, $0E, $08, $08, $08, $0E, $08, $0E, $0E, $08, $08, $08, $01, $01, $08
+>46c0	08 0e 0e 08 08 08 0e 08 0e 0e 08 08 08 08 0e 0e
+>46d0	0e 08 0e 08 08 08 0e 08 0e 0e 08 08 08 01 01 08
+>46e0	08 08 08 0e 08 0e 08 08			.byte	$08, $08, $08, $0E, $08, $0E, $08, $08, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $08, $08, $0E, $06, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08
+>46e8	08 0e 08 0e 08 0e 08 0e 08 08 08 0e 06 08 0e 08
+>46f8	0e 08 0e 08 0e 08 0e 08 0e 08 0e 08 0e 08 0e 08
+>4708	08 08 08 08 08 08 08 08			.byte	$08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $06, $06, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08, $08
+>4710	08 08 08 08 08 08 08 08 08 08 08 06 06 08 08 08
+>4720	08 08 08 08 08 08 08 08 08 08 08 08 08 08 08 08
+>4730	00 00 00 00 00 00 00 00			.byte	$00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+>4738	00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+>4748	00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+>4758	05 05 05 05 05 05 05 05			.byte	$05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05
+>4760	05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05
+>4770	05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05
+>4780	05 05 05 05 05 05 05 05			.byte	$05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05, $05
+>4788	05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05
+>4798	05 05 05 05 05 05 05 05 05 05 05 05 05 05 05 05
+>47a8	00 00 00 00 00 00 00 00			.byte	$00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
+>47b0	00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+>47c0	00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
 
 ;******  Return to file: ./src/game.asm
 
 
 ;******  Processing file: ./src/sprite_data.asm
 
-.2e41					pacman_r_fr1:
->2e41	00 00 00 0f c0 00 0f c0		.byte $00,$00,$00,$0f,$c0,$00,$0f,$c0
->2e49	00 3c f0 00 3c f0 00 ff		.byte $00,$3c,$f0,$00,$3c,$f0,$00,$ff
->2e51	fc 00 ff fc 00 ff fc 00		.byte $fc,$00,$ff,$fc,$00,$ff,$fc,$00
->2e59	ff fc 00 ff fc 00 ff fc		.byte $ff,$fc,$00,$ff,$fc,$00,$ff,$fc
->2e61	00 3f f0 00 3f f0 00 0f		.byte $00,$3f,$f0,$00,$3f,$f0,$00,$0f
->2e69	c0 00 0f c0 00 00 00 00		.byte $c0,$00,$0f,$c0,$00,$00,$00,$00
->2e71	00 00 00 00 00 00 00 00		.byte $00,$00,$00,$00,$00,$00,$00,$00
->2e79	00 00 00 00 00 00 00 07		.byte $00,$00,$00,$00,$00,$00,$00,$07
-.2e81					pacman_r_fr2:
->2e81	00 00 00 0f c0 00 0f c0		.byte $00,$00,$00,$0f,$c0,$00,$0f,$c0
->2e89	00 3c f0 00 3c f0 00 ff		.byte $00,$3c,$f0,$00,$3c,$f0,$00,$ff
->2e91	fc 00 ff fc 00 fc 00 00		.byte $fc,$00,$ff,$fc,$00,$fc,$00,$00
->2e99	fc 00 00 ff fc 00 ff fc		.byte $fc,$00,$00,$ff,$fc,$00,$ff,$fc
->2ea1	00 3f f0 00 3f f0 00 0f		.byte $00,$3f,$f0,$00,$3f,$f0,$00,$0f
->2ea9	c0 00 0f c0 00 00 00 00		.byte $c0,$00,$0f,$c0,$00,$00,$00,$00
->2eb1	00 00 00 00 00 00 00 00		.byte $00,$00,$00,$00,$00,$00,$00,$00
->2eb9	00 00 00 00 00 00 00 07		.byte $00,$00,$00,$00,$00,$00,$00,$07
-.2ec1					pacman_r_fr3:
->2ec1	00 00 00 0f c0 00 0f c0		.byte $00,$00,$00,$0f,$c0,$00,$0f,$c0
->2ec9	00 3c f0 00 3c f0 00 fc		.byte $00,$3c,$f0,$00,$3c,$f0,$00,$fc
->2ed1	00 00 fc 00 00 f0 00 00		.byte $00,$00,$fc,$00,$00,$f0,$00,$00
->2ed9	f0 00 00 fc 00 00 fc 00		.byte $f0,$00,$00,$fc,$00,$00,$fc,$00
->2ee1	00 3f fc 00 3f fc 00 0f		.byte $00,$3f,$fc,$00,$3f,$fc,$00,$0f
->2ee9	c0 00 0f c0 00 00 00 00		.byte $c0,$00,$0f,$c0,$00,$00,$00,$00
->2ef1	00 00 00 00 00 00 00 00		.byte $00,$00,$00,$00,$00,$00,$00,$00
->2ef9	00 00 00 00 00 00 00 07		.byte $00,$00,$00,$00,$00,$00,$00,$07
-.2f01					pacman_l_fr1:
->2f01	00 00 00 0f c0 00 0f c0		.byte $00,$00,$00,$0f,$c0,$00,$0f,$c0
->2f09	00 3c f0 00 3c f0 00 ff		.byte $00,$3c,$f0,$00,$3c,$f0,$00,$ff
->2f11	fc 00 ff fc 00 00 fc 00		.byte $fc,$00,$ff,$fc,$00,$00,$fc,$00
->2f19	00 fc 00 ff fc 00 ff fc		.byte $00,$fc,$00,$ff,$fc,$00,$ff,$fc
->2f21	00 3f f0 00 3f f0 00 0f		.byte $00,$3f,$f0,$00,$3f,$f0,$00,$0f
->2f29	c0 00 0f c0 00 00 00 00		.byte $c0,$00,$0f,$c0,$00,$00,$00,$00
->2f31	00 00 00 00 00 00 00 00		.byte $00,$00,$00,$00,$00,$00,$00,$00
->2f39	00 00 00 00 00 00 00 07		.byte $00,$00,$00,$00,$00,$00,$00,$07
-.2f41					pacman_l_fr2
->2f41	00 00 00 0f c0 00 0f c0		.byte $00,$00,$00,$0f,$c0,$00,$0f,$c0
->2f49	00 3c f0 00 3c f0 00 00		.byte $00,$3c,$f0,$00,$3c,$f0,$00,$00
->2f51	fc 00 00 fc 00 00 3c 00		.byte $fc,$00,$00,$fc,$00,$00,$3c,$00
->2f59	00 3c 00 00 fc 00 00 fc		.byte $00,$3c,$00,$00,$fc,$00,$00,$fc
->2f61	00 ff f0 00 ff f0 00 0f		.byte $00,$ff,$f0,$00,$ff,$f0,$00,$0f
->2f69	c0 00 0f c0 00 00 00 00		.byte $c0,$00,$0f,$c0,$00,$00,$00,$00
->2f71	00 00 00 00 00 00 00 00		.byte $00,$00,$00,$00,$00,$00,$00,$00
->2f79	00 00 00 00 00 00 00 07		.byte $00,$00,$00,$00,$00,$00,$00,$07
+.47d0					pacman_r_fr1:
+>47d0	00 00 00 0f c0 00 0f c0		.byte $00,$00,$00,$0f,$c0,$00,$0f,$c0
+>47d8	00 3c f0 00 3c f0 00 ff		.byte $00,$3c,$f0,$00,$3c,$f0,$00,$ff
+>47e0	fc 00 ff fc 00 ff fc 00		.byte $fc,$00,$ff,$fc,$00,$ff,$fc,$00
+>47e8	ff fc 00 ff fc 00 ff fc		.byte $ff,$fc,$00,$ff,$fc,$00,$ff,$fc
+>47f0	00 3f f0 00 3f f0 00 0f		.byte $00,$3f,$f0,$00,$3f,$f0,$00,$0f
+>47f8	c0 00 0f c0 00 00 00 00		.byte $c0,$00,$0f,$c0,$00,$00,$00,$00
+>4800	00 00 00 00 00 00 00 00		.byte $00,$00,$00,$00,$00,$00,$00,$00
+>4808	00 00 00 00 00 00 00 07		.byte $00,$00,$00,$00,$00,$00,$00,$07
+.4810					pacman_r_fr2:
+>4810	00 00 00 0f c0 00 0f c0		.byte $00,$00,$00,$0f,$c0,$00,$0f,$c0
+>4818	00 3c f0 00 3c f0 00 ff		.byte $00,$3c,$f0,$00,$3c,$f0,$00,$ff
+>4820	fc 00 ff fc 00 fc 00 00		.byte $fc,$00,$ff,$fc,$00,$fc,$00,$00
+>4828	fc 00 00 ff fc 00 ff fc		.byte $fc,$00,$00,$ff,$fc,$00,$ff,$fc
+>4830	00 3f f0 00 3f f0 00 0f		.byte $00,$3f,$f0,$00,$3f,$f0,$00,$0f
+>4838	c0 00 0f c0 00 00 00 00		.byte $c0,$00,$0f,$c0,$00,$00,$00,$00
+>4840	00 00 00 00 00 00 00 00		.byte $00,$00,$00,$00,$00,$00,$00,$00
+>4848	00 00 00 00 00 00 00 07		.byte $00,$00,$00,$00,$00,$00,$00,$07
+.4850					pacman_r_fr3:
+>4850	00 00 00 0f c0 00 0f c0		.byte $00,$00,$00,$0f,$c0,$00,$0f,$c0
+>4858	00 3c f0 00 3c f0 00 fc		.byte $00,$3c,$f0,$00,$3c,$f0,$00,$fc
+>4860	00 00 fc 00 00 f0 00 00		.byte $00,$00,$fc,$00,$00,$f0,$00,$00
+>4868	f0 00 00 fc 00 00 fc 00		.byte $f0,$00,$00,$fc,$00,$00,$fc,$00
+>4870	00 3f fc 00 3f fc 00 0f		.byte $00,$3f,$fc,$00,$3f,$fc,$00,$0f
+>4878	c0 00 0f c0 00 00 00 00		.byte $c0,$00,$0f,$c0,$00,$00,$00,$00
+>4880	00 00 00 00 00 00 00 00		.byte $00,$00,$00,$00,$00,$00,$00,$00
+>4888	00 00 00 00 00 00 00 07		.byte $00,$00,$00,$00,$00,$00,$00,$07
+.4890					pacman_l_fr1:
+>4890	00 00 00 0f c0 00 0f c0		.byte $00,$00,$00,$0f,$c0,$00,$0f,$c0
+>4898	00 3c f0 00 3c f0 00 ff		.byte $00,$3c,$f0,$00,$3c,$f0,$00,$ff
+>48a0	fc 00 ff fc 00 00 fc 00		.byte $fc,$00,$ff,$fc,$00,$00,$fc,$00
+>48a8	00 fc 00 ff fc 00 ff fc		.byte $00,$fc,$00,$ff,$fc,$00,$ff,$fc
+>48b0	00 3f f0 00 3f f0 00 0f		.byte $00,$3f,$f0,$00,$3f,$f0,$00,$0f
+>48b8	c0 00 0f c0 00 00 00 00		.byte $c0,$00,$0f,$c0,$00,$00,$00,$00
+>48c0	00 00 00 00 00 00 00 00		.byte $00,$00,$00,$00,$00,$00,$00,$00
+>48c8	00 00 00 00 00 00 00 07		.byte $00,$00,$00,$00,$00,$00,$00,$07
+.48d0					pacman_l_fr2
+>48d0	00 00 00 0f c0 00 0f c0		.byte $00,$00,$00,$0f,$c0,$00,$0f,$c0
+>48d8	00 3c f0 00 3c f0 00 00		.byte $00,$3c,$f0,$00,$3c,$f0,$00,$00
+>48e0	fc 00 00 fc 00 00 3c 00		.byte $fc,$00,$00,$fc,$00,$00,$3c,$00
+>48e8	00 3c 00 00 fc 00 00 fc		.byte $00,$3c,$00,$00,$fc,$00,$00,$fc
+>48f0	00 ff f0 00 ff f0 00 0f		.byte $00,$ff,$f0,$00,$ff,$f0,$00,$0f
+>48f8	c0 00 0f c0 00 00 00 00		.byte $c0,$00,$0f,$c0,$00,$00,$00,$00
+>4900	00 00 00 00 00 00 00 00		.byte $00,$00,$00,$00,$00,$00,$00,$00
+>4908	00 00 00 00 00 00 00 07		.byte $00,$00,$00,$00,$00,$00,$00,$07
 
 ;******  Return to file: ./src/game.asm
 
