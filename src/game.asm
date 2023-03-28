@@ -50,7 +50,7 @@ SPRITE_0_Y_POSITION 	= $D001
 SPRITE_XMSB				= $D010
 VIC_SCROLY				= $D011
 VIC_RASTER				= $D012
-SPRITE_ENBL				= $D015
+VIC_SPRITE_ENBL			= $D015
 VIC_SCREEN_BASE_REG		= $D018
 VIC_IRQ_REG				= $D019
 VIC_SPR_FG_COL_REG		= $D01F
@@ -75,10 +75,12 @@ DIR_LEFT	= $04
 
 CHARS_SRC	= $60
 CHARS_DEST 	= $62
+PLAYER_ADDR = $60
 
-; addresses around player to determine movement
-PLAYER_SCRN = $60
-
+PLAYER_STARTING_X = $b0
+PLAYER_STARTING_Y = $b0
+PLAYER_RIGHT_LEFT_STEP = $08
+PLAYER_UP_DOWN_STEP = $14
 
 SPRITE_0_FRAME_COUNT	= $03
 
@@ -98,19 +100,8 @@ main:
 	jsr screen_init
 	jsr chars_init
 	jsr sprite_init
-;fvr: jmp fvr
+;forever: jmp forever
 	jsr irq_init
-
-	; set starting player screen char address ($0692)
-	; it is set as one less than where player sprite is
-	; so we can look behind and 2 ahead
-	lda #$92
-	sta PLAYER_SCRN
-	lda #$06
-	sta PLAYER_SCRN+1
-	sta PLAYER_SCRN+3
-	lda #$6B
-	sta PLAYER_SCRN+2
 
 main_loop:
 	lda VIC_SPR_FG_COL_REG
@@ -121,9 +112,13 @@ main_loop:
 	sta joy_cache
 	jsr joystick_handler
 
+lda #$01
+ldy #$00
+sta ($60),y
+
 main_collision_check:
 	lda collision_flg
-	lsr a ;Sprite 0 crash into background
+	lsr a 						;Sprite 0 crash into background
     bcs collide
 	;inc VIC_BACKGROUND_COLOR
 
@@ -150,18 +145,29 @@ sprite_0_fr_count:
 	.byte SPRITE_0_FRAME_COUNT
 collision_flg:
 	.byte $00
-player_x:
-	.byte $00, $b0
-player_y:
-	.byte $b0
 player_direction:
 	.byte DIR_STOPPED
 sprite_move_lr_bytes:
-	.byte $08
+	.byte PLAYER_RIGHT_LEFT_STEP
 sprite_move_ud_bytes:
-	.byte $0a
+	.byte PLAYER_UP_DOWN_STEP
 joy_cache:
 	.byte $00
+num1:
+	.byte $00				; 8 bit multiplication
+num2:
+	.byte $00
+result:
+	.byte $00, $00			; 16 bit result
+player_screen_address:
+	.byte $00, $00
+
+col:
+.byte $00
+row:
+.byte $00
+tmp:
+.byte $00
 
 ; ====================================================================
 ; initialize the screen
@@ -264,7 +270,7 @@ sprite_init:
   	lda #56					; use default spr 0 pointer location (56x64=3584=$0e00)
   	sta SPRITE_0_POINTER
 	lda #$01              	; enable...Sprite 0 => %0000 0001 (all sprites off except Sprite 0)
-  	sta SPRITE_ENBL
+  	sta VIC_SPRITE_ENBL
 	lda #YELLOW				; set sprite 0 foreground color
   	sta SPRITE_0_COLOR
  
@@ -293,11 +299,11 @@ sprite_init:
 	bne -
 
 	;starting sprite location
-	lda player_x
+	lda #$00
 	sta SPRITE_XMSB
-	lda player_x+1
+	lda #PLAYER_STARTING_X
 	sta SPRITE_0_X_POSITION
-	lda player_y
+	lda #PLAYER_STARTING_Y
 	sta SPRITE_0_Y_POSITION
 
 	rts
@@ -463,7 +469,108 @@ irq_player_move_check:
 	jsr player_move_left
 
 irq_end
+	jsr sprite_to_row_col
+	jsr row_col_to_player_screen_address
 	jmp $fa65
+
+; ====================================================================
+sprite_to_row_col:
+; ====================================================================
+	lda #$00					; we will add 32 to the column
+	sta tmp						; if beyond the x location > 255
+	lda SPRITE_XMSB
+	cmp #$01					; TODO: mask out just the zero bit
+	bne +
+	lda #32
+	sta tmp
+	
++	lda SPRITE_0_X_POSITION
+	lsr 						; Divide by 8 (right shift 3 times)
+	lsr
+	lsr
+	sta col
+	lda tmp
+	adc col						; if the x > 255, add the 32 to the
+	sta col						; column count
+
+ + 	lda SPRITE_0_Y_POSITION
+	lsr 						; Divide by 8 (right shift 3 times)
+	lsr
+	lsr
+	sta row
+
+	lda col						; normalize values
+	sec							; (since sprites can start 8x3 bytes
+	sbc #$03					;  offscreen from the left...
+	sta col
+	lda row
+	sec
+	sbc #$07					; ..and 8x6 bytes above the top)
+	sta row						; AND we subtract one more row because
+	rts							; we want to easily calculate above, left,right, and below
+
+; ====================================================================
+row_col_to_player_screen_address:
+; ====================================================================
+	lda row
+	ldy #40   						; Number of columns per row
+	jsr multiply_8b_by_8b
+	
+	clc        						; Clear carry flag
+	adc col    						; Add the column value
+	sta player_screen_address
+
+	lda #<SCREEN_RAM 				; Low byte of screen memory address
+	adc player_screen_address
+	sta player_screen_address
+
+	lda #>SCREEN_RAM 				; High byte of screen memory address						
+	sta player_screen_address+1
+	
+	lda result
+	clc
+	adc player_screen_address+1
+	sta player_screen_address+1
+
+	; move final values to zp for indexing
+	lda player_screen_address+1
+	sta PLAYER_ADDR+1
+	lda player_screen_address
+	sta PLAYER_ADDR
+
+	rts
+
+num1Hi = $70
+; ====================================================================
+multiply_8b_by_8b:
+; ====================================================================
+	sta num1
+	sty num2
+	lda #$00
+	tay
+	sty num1Hi  ; remove this line for 16*8=16bit multiply
+	beq enterLoop
+
+doAdd:
+	clc
+	adc num1
+	tax
+	tya
+	adc num1Hi
+	tay
+	txa
+
+loop:
+	asl num1
+	rol num1Hi
+	enterLoop:  ; accumulating multiply entry point (enter with .A=lo, .Y=hi)
+	lsr num2
+	bcs doAdd
+	bne loop
+
+	sta result+1
+	sty result
+	rts
 
 ; ====================================================================
 joystick_handler:
@@ -513,9 +620,16 @@ joystick_end:
 ; ====================================================================
 player_move_right:
 ; ====================================================================
+	; finish any pending moves through cells
+	;lda sprite_move_lr_bytes
+	;beq player_move_right_check
+	;dec sprite_move_lr_bytes
+	;jmp player_move_right_sprite
+
 	; can we move?
-	ldy #$03						; character position is one behind the sprite location
-	lda (PLAYER_SCRN),y 			; so we can check in front and behind.  In this case we add 3 to look ahead
+player_move_right_check:	
+	ldy #$29						; player address is one above the sprite location
+	lda (PLAYER_ADDR),y 			; so we can check in front by adding 40+2
 	cmp #$20
 	beq player_move_right_yes
 	cmp #$45
@@ -530,33 +644,16 @@ player_move_right:
 	beq player_move_right_yes
 	cmp #$77
 	beq player_move_right_yes
+	cmp #$01
+	beq player_move_right_yes
 	rts								; nope - exit
 
-	; we can move. update the screen matrix address if we have moved to another cell
 player_move_right_yes:
-	dec sprite_move_lr_bytes		; decrease the 8 counter by 1
-	bne player_move_right_sprite	; if its not zero, jump ahead
-	lda #$08						; else reset it to 8
-	sta sprite_move_lr_bytes
-	inc PLAYER_SCRN					; ...increase the low byte of the screen matrix address
-	bne +							; ...if the low byte did not wrap around to zero, jump ahead
-	inc PLAYER_SCRN+1				; ...else increase the high byte of the screen matrix address
-
-+	lda PLAYER_SCRN					; copy current location-1 to
-	sta PLAYER_SCRN+2				; above location (to make the math easier)
-	lda PLAYER_SCRN+1
-	sta PLAYER_SCRN+3
-
-	lda PLAYER_SCRN+2				; update the address 'above' the 
-	sec								; player
-	sbc #$27						; 39 memory locations = above
-	sta PLAYER_SCRN+2				; save it
-	bcs player_move_right_sprite
-	dec PLAYER_SCRN+3				; if wrap around, dec high byte
+	lda #PLAYER_RIGHT_LEFT_STEP		; reset the counter...
+	sta sprite_move_lr_bytes		; ...and start moving
 
 player_move_right_sprite:
-	; move the sprite
-	clc 
+	clc 							; move the sprite
 	lda SPRITE_0_X_POSITION
 	adc #$01
 	bcc +
@@ -568,9 +665,16 @@ player_move_right_sprite:
 ; ====================================================================
 player_move_left:
 ; ====================================================================
+	; finish any pending moves through cells
+	;lda sprite_move_lr_bytes
+	;beq player_move_left_check
+	;dec sprite_move_lr_bytes
+	;jmp player_move_left_sprite
+
 	; can we move?
-	ldy #$00
-	lda (PLAYER_SCRN),y 
+player_move_left_check:	
+	ldy #$27						; player address is one above the sprite location
+	lda (PLAYER_ADDR),y 			; so we can check to left by adding 38
 	cmp #$20
 	beq player_move_left_yes
 	cmp #$45
@@ -585,32 +689,15 @@ player_move_left:
 	beq player_move_left_yes
 	cmp #$77
 	beq player_move_left_yes
+	cmp #$01
+	beq player_move_left_yes
 	rts								; nope - exit
 
-	; we can move. update the screen matrix address if we have moved to another cell
 player_move_left_yes:
-	dec sprite_move_lr_bytes			; decrease the 8 counter by 1
-	bne player_move_left_sprite		; if its not zero, jump ahead
-	lda #$08						; else reset it to 8
-	sta sprite_move_lr_bytes
-	dec PLAYER_SCRN					; ...increase the low byte of the screen matrix address
-	bne +							; ...if the low byte did not wrap around to zero, jump ahead
-	dec PLAYER_SCRN+1				; ...else increase the high byte of the screen matrix address
+	lda #PLAYER_RIGHT_LEFT_STEP		; reset the counter...
+	sta sprite_move_lr_bytes		; ...and start moving
 
-+	lda PLAYER_SCRN					; copy current location-1 to
-	sta PLAYER_SCRN+2				; above location (to make the math easier)
-	lda PLAYER_SCRN+1
-	sta PLAYER_SCRN+3
-
-	lda PLAYER_SCRN+2				; update the address 'above' the 
-	sec								; player
-	sbc #$27						; 39 memory locations = above
-	sta PLAYER_SCRN+2				; save it
-	bcs player_move_left_sprite
-	dec PLAYER_SCRN+3				; if wrap around, dec high byte
-
-player_move_left_sprite
-	; move the sprite
+player_move_left_sprite:
 	sec 
 	lda SPRITE_0_X_POSITION
 	sbc #$01
@@ -623,9 +710,16 @@ player_move_left_sprite
 ; ====================================================================
 player_move_up:
 ; ====================================================================
+	; finish any pending moves through cells
+	;lda sprite_move_ud_bytes
+	;beq player_move_up_check
+	;dec sprite_move_ud_bytes
+	;jmp player_move_up_sprite
+
 	; can we move?
-	ldy #$01						
-	lda (PLAYER_SCRN+2),y 			
+player_move_up_check:	
+	ldy #$00					; player address is one above the sprite location	
+	lda (PLAYER_ADDR),y 		; so index is zero	
 	cmp #$20
 	beq player_move_up_yes
 	cmp #$45
@@ -636,48 +730,30 @@ player_move_up:
 	beq player_move_up_yes
 	cmp #$7c
 	beq player_move_up_yes
+	cmp #$01
+	beq player_move_up_yes
 	rts								; nope - exit
 
-	; we can move. update the screen matrix address if we have moved to another cell
 player_move_up_yes:
-	dec sprite_move_lr_bytes			; decrease the 8 counter by 1
-	bne player_move_up_sprite		; if its not zero, jump ahead
-	lda #$08						; else reset it to 8
-	sta sprite_move_lr_bytes
-
-	lda PLAYER_SCRN					; subtract 39 from player screen location
-	sec
-	sbc #$28						; 39 memory locations = above
-	sta PLAYER_SCRN					; save it
-	bcs +
-	dec PLAYER_SCRN+1				; if wrap around, dec high byte
-
-+	lda PLAYER_SCRN					; copy current location-1 to
-	sta PLAYER_SCRN+2				; above location (to make the math easier)
-	lda PLAYER_SCRN+1
-	sta PLAYER_SCRN+3
-
-	lda PLAYER_SCRN+2				; update the address 'above' the 
-	sec								; player
-	sbc #$27						; 39 memory locations = above
-	sta PLAYER_SCRN+2				; save it
-	bcs player_move_up_sprite
-	dec PLAYER_SCRN+3				; if wrap around, dec high byte
+	lda #PLAYER_UP_DOWN_STEP		; reset the counter...
+	sta sprite_move_ud_bytes		; ...and start moving
 
 player_move_up_sprite:
-	; move the sprite
-	sec 
-	lda SPRITE_0_Y_POSITION
-	sbc #$01
-	sta SPRITE_0_Y_POSITION
+	dec SPRITE_0_Y_POSITION			; move the sprite
 	rts
 
 ; ====================================================================
 player_move_down:
 ; ====================================================================
+	; finish any pending moves through cells
+	;lda sprite_move_ud_bytes
+	;beq player_move_down_check
+	;dec sprite_move_ud_bytes
+	;jmp player_move_down_sprite
+
 	; can we move?
-	ldy #$51;78						; what is below the player?
-	lda (PLAYER_SCRN),y
+	ldy #$50						; what is below the player?
+	lda (PLAYER_ADDR),y
 	cmp #$20
 	beq player_move_down_yes
 	cmp #$45
@@ -687,6 +763,8 @@ player_move_down:
 	cmp #$6C
 	beq player_move_down_yes
 	cmp #$7c
+	beq player_move_down_yes
+	cmp #$01
 	beq player_move_down_yes
 	rts								; nope - exit
 
@@ -694,27 +772,8 @@ player_move_down:
 player_move_down_yes
 	dec sprite_move_ud_bytes		; decrease the counter by 1
 	bne player_move_down_sprite		; if its not zero, jump ahead
-	lda #$0a						; else reset it to 10
-	sta sprite_move_lr_bytes
-
-	lda PLAYER_SCRN					; subtract 39 from player screen location
-	clc
-	adc #$28						; 39 memory locations = above
-	sta PLAYER_SCRN					; save it
-	bcc +
-	inc PLAYER_SCRN+1				; if wrap around, dec high byte
-
-+	lda PLAYER_SCRN					; copy current location-1 to
-	sta PLAYER_SCRN+2				; above location (to make the math easier)
-	lda PLAYER_SCRN+1
-	sta PLAYER_SCRN+3
-
-	lda PLAYER_SCRN+2				; update the address 'above' the 
-	sec								; player
-	sbc #$27						; 39 memory locations = above
-	sta PLAYER_SCRN+2				; save it
-	bcs player_move_down_sprite
-	dec PLAYER_SCRN+3				; if wrap around, dec high byte
+	lda #PLAYER_UP_DOWN_STEP		; else reset it to 10
+	sta sprite_move_ud_bytes
 
 player_move_down_sprite:
 	; move the sprite
