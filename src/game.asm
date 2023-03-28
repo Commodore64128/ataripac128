@@ -624,7 +624,7 @@ player_move_left_sprite
 player_move_up:
 ; ====================================================================
 	; can we move?
-	ldy #$01						
+	ldy #$00						
 	lda (PLAYER_SCRN+2),y 			
 	cmp #$20
 	beq player_move_up_yes
@@ -640,10 +640,10 @@ player_move_up:
 
 	; we can move. update the screen matrix address if we have moved to another cell
 player_move_up_yes:
-	dec sprite_move_lr_bytes			; decrease the 8 counter by 1
+	dec sprite_move_ud_bytes		; decrease the counter by 1
 	bne player_move_up_sprite		; if its not zero, jump ahead
-	lda #$08						; else reset it to 8
-	sta sprite_move_lr_bytes
+	lda #$0a						; else reset it to 8
+	sta sprite_move_ud_bytes
 
 	lda PLAYER_SCRN					; subtract 39 from player screen location
 	sec
@@ -666,10 +666,7 @@ player_move_up_yes:
 
 player_move_up_sprite:
 	; move the sprite
-	sec 
-	lda SPRITE_0_Y_POSITION
-	sbc #$01
-	sta SPRITE_0_Y_POSITION
+	dec SPRITE_0_Y_POSITION
 	rts
 
 ; ====================================================================
@@ -695,7 +692,7 @@ player_move_down_yes
 	dec sprite_move_ud_bytes		; decrease the counter by 1
 	bne player_move_down_sprite		; if its not zero, jump ahead
 	lda #$0a						; else reset it to 10
-	sta sprite_move_lr_bytes
+	sta sprite_move_ud_bytes
 
 	lda PLAYER_SCRN					; subtract 39 from player screen location
 	clc
