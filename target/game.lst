@@ -1,7 +1,7 @@
 
 ; 64tass Turbo Assembler Macro V1.53.1515 listing file
 ; 64tass -a -l ./target/game.lbl -L ./target/game.lst -o ./target/game ./src/game.asm
-; Tue Mar 14 17:19:28 2023
+; Fri Mar 31 09:56:29 2023
 
 ;Offset	;Hex		;Monitor	;Source
 
@@ -69,6 +69,8 @@
 =$04					DIR_LEFT	= $04
 =$60					CHARS_SRC	= $60
 =$62					CHARS_DEST 	= $62
+=$14					SPRITE_UPDOWN_STEP = $14
+=$08					SPRITE_LEFTRIGHT_STEP = $08
 =$60					PLAYER_SCRN = $60
 =$03					SPRITE_0_FRAME_COUNT	= $03
 >1c01	1c 1c 0a 00 9e 20 37 31			.byte $1c, $1c, $0A, $00, $9E, $20, $37, $31, $38, $32
@@ -121,9 +123,9 @@
 .1c51					player_direction:
 >1c51	00					.byte DIR_STOPPED
 .1c52					sprite_move_lr_bytes:
->1c52	08					.byte $08
+>1c52	08					.byte SPRITE_LEFTRIGHT_STEP
 .1c53					sprite_move_ud_bytes:
->1c53	0a					.byte $0a
+>1c53	14					.byte SPRITE_UPDOWN_STEP
 .1c54					joy_cache:
 >1c54	00					.byte $00
 .1c55					screen_init:
@@ -313,7 +315,7 @@
 .1dc8	ad 51 1c	lda $1c51	+	lda player_direction
 .1dcb	c9 02		cmp #$02		cmp #DIR_DOWN
 .1dcd	d0 06		bne $1dd5		bne +
-.1dcf	20 29 1f	jsr $1f29		jsr player_move_down
+.1dcf	20 23 1f	jsr $1f23		jsr player_move_down
 .1dd2	4c ec 1d	jmp $1dec		jmp irq_end
 .1dd5	ad 51 1c	lda $1c51	+	lda player_direction
 .1dd8	c9 03		cmp #$03		cmp #DIR_RIGHT
@@ -332,14 +334,14 @@
 .1df4	d0 0b		bne $1e01		bne +
 .1df6	a9 03		lda #$03		lda #DIR_RIGHT
 .1df8	8d 51 1c	sta $1c51		sta player_direction
-.1dfb	20 6e 1f	jsr $1f6e		jsr select_player_r_anim
+.1dfb	20 68 1f	jsr $1f68		jsr select_player_r_anim
 .1dfe	4c 2e 1e	jmp $1e2e		jmp joystick_end
 .1e01	ad 54 1c	lda $1c54	+	lda joy_cache
 .1e04	29 04		and #$04		and #$04
 .1e06	d0 0b		bne $1e13		bne +
 .1e08	a9 04		lda #$04		lda #DIR_LEFT
 .1e0a	8d 51 1c	sta $1c51		sta player_direction
-.1e0d	20 89 1f	jsr $1f89		jsr select_player_l_anim
+.1e0d	20 83 1f	jsr $1f83		jsr select_player_l_anim
 .1e10	4c 2e 1e	jmp $1e2e		jmp joystick_end
 .1e13	ad 54 1c	lda $1c54	+	lda joy_cache
 .1e16	29 01		and #$01		and #$01
@@ -377,7 +379,7 @@
 .1e55					player_move_right_yes:
 .1e55	ce 52 1c	dec $1c52		dec sprite_move_lr_bytes		; decrease the 8 counter by 1
 .1e58	d0 1e		bne $1e78		bne player_move_right_sprite	; if its not zero, jump ahead
-.1e5a	a9 08		lda #$08		lda #$08						; else reset it to 8
+.1e5a	a9 08		lda #$08		lda #SPRITE_LEFTRIGHT_STEP		; else reset it
 .1e5c	8d 52 1c	sta $1c52		sta sprite_move_lr_bytes
 .1e5f	e6 60		inc $60			inc PLAYER_SCRN					; ...increase the low byte of the screen matrix address
 .1e61	d0 02		bne $1e65		bne +							; ...if the low byte did not wrap around to zero, jump ahead
@@ -420,9 +422,9 @@
 .1ea7	f0 01		beq $1eaa		beq player_move_left_yes
 .1ea9	60		rts			rts								; nope - exit
 .1eaa					player_move_left_yes:
-.1eaa	ce 52 1c	dec $1c52		dec sprite_move_lr_bytes			; decrease the 8 counter by 1
+.1eaa	ce 52 1c	dec $1c52		dec sprite_move_lr_bytes		; decrease the counter by 1
 .1ead	d0 1e		bne $1ecd		bne player_move_left_sprite		; if its not zero, jump ahead
-.1eaf	a9 08		lda #$08		lda #$08						; else reset it to 8
+.1eaf	a9 08		lda #$08		lda #SPRITE_LEFTRIGHT_STEP		; else reset it
 .1eb1	8d 52 1c	sta $1c52		sta sprite_move_lr_bytes
 .1eb4	c6 60		dec $60			dec PLAYER_SCRN					; ...increase the low byte of the screen matrix address
 .1eb6	d0 02		bne $1eba		bne +							; ...if the low byte did not wrap around to zero, jump ahead
@@ -447,7 +449,7 @@
 .1eda	8d 00 d0	sta $d000	+	sta SPRITE_0_X_POSITION
 .1edd	60		rts			rts
 .1ede					player_move_up:
-.1ede	a0 01		ldy #$01		ldy #$01
+.1ede	a0 00		ldy #$00		ldy #$00
 .1ee0	b1 62		lda ($62),y		lda (PLAYER_SCRN+2),y
 .1ee2	c9 20		cmp #$20		cmp #$20
 .1ee4	f0 11		beq $1ef7		beq player_move_up_yes
@@ -461,10 +463,10 @@
 .1ef4	f0 01		beq $1ef7		beq player_move_up_yes
 .1ef6	60		rts			rts								; nope - exit
 .1ef7					player_move_up_yes:
-.1ef7	ce 52 1c	dec $1c52		dec sprite_move_lr_bytes			; decrease the 8 counter by 1
+.1ef7	ce 53 1c	dec $1c53		dec sprite_move_ud_bytes		; decrease the counter by 1
 .1efa	d0 23		bne $1f1f		bne player_move_up_sprite		; if its not zero, jump ahead
-.1efc	a9 08		lda #$08		lda #$08						; else reset it to 8
-.1efe	8d 52 1c	sta $1c52		sta sprite_move_lr_bytes
+.1efc	a9 08		lda #$08		lda #$08 ;SPRITE_UPDOWN_STEP			; else reset it
+.1efe	8d 53 1c	sta $1c53		sta sprite_move_ud_bytes
 .1f01	a5 60		lda $60			lda PLAYER_SCRN					; subtract 39 from player screen location
 .1f03	38		sec			sec
 .1f04	e9 28		sbc #$28		sbc #$28						; 39 memory locations = above
@@ -482,77 +484,74 @@
 .1f1b	b0 02		bcs $1f1f		bcs player_move_up_sprite
 .1f1d	c6 63		dec $63			dec PLAYER_SCRN+3				; if wrap around, dec high byte
 .1f1f					player_move_up_sprite:
-.1f1f	38		sec			sec
-.1f20	ad 01 d0	lda $d001		lda SPRITE_0_Y_POSITION
-.1f23	e9 01		sbc #$01		sbc #$01
-.1f25	8d 01 d0	sta $d001		sta SPRITE_0_Y_POSITION
-.1f28	60		rts			rts
-.1f29					player_move_down:
-.1f29	a0 51		ldy #$51		ldy #$51;78						; what is below the player?
-.1f2b	b1 60		lda ($60),y		lda (PLAYER_SCRN),y
-.1f2d	c9 20		cmp #$20		cmp #$20
-.1f2f	f0 11		beq $1f42		beq player_move_down_yes
-.1f31	c9 45		cmp #$45		cmp #$45
-.1f33	f0 0d		beq $1f42		beq player_move_down_yes
-.1f35	c9 52		cmp #$52		cmp #$52
-.1f37	f0 09		beq $1f42		beq player_move_down_yes
-.1f39	c9 6c		cmp #$6c		cmp #$6C
-.1f3b	f0 05		beq $1f42		beq player_move_down_yes
-.1f3d	c9 7c		cmp #$7c		cmp #$7c
-.1f3f	f0 01		beq $1f42		beq player_move_down_yes
-.1f41	60		rts			rts								; nope - exit
-.1f42					player_move_down_yes
-.1f42	ce 53 1c	dec $1c53		dec sprite_move_ud_bytes		; decrease the counter by 1
-.1f45	d0 23		bne $1f6a		bne player_move_down_sprite		; if its not zero, jump ahead
-.1f47	a9 0a		lda #$0a		lda #$0a						; else reset it to 10
-.1f49	8d 52 1c	sta $1c52		sta sprite_move_lr_bytes
-.1f4c	a5 60		lda $60			lda PLAYER_SCRN					; subtract 39 from player screen location
-.1f4e	18		clc			clc
-.1f4f	69 28		adc #$28		adc #$28						; 39 memory locations = above
-.1f51	85 60		sta $60			sta PLAYER_SCRN					; save it
-.1f53	90 02		bcc $1f57		bcc +
-.1f55	e6 61		inc $61			inc PLAYER_SCRN+1				; if wrap around, dec high byte
-.1f57	a5 60		lda $60		+	lda PLAYER_SCRN					; copy current location-1 to
-.1f59	85 62		sta $62			sta PLAYER_SCRN+2				; above location (to make the math easier)
-.1f5b	a5 61		lda $61			lda PLAYER_SCRN+1
-.1f5d	85 63		sta $63			sta PLAYER_SCRN+3
-.1f5f	a5 62		lda $62			lda PLAYER_SCRN+2				; update the address 'above' the
-.1f61	38		sec			sec								; player
-.1f62	e9 27		sbc #$27		sbc #$27						; 39 memory locations = above
-.1f64	85 62		sta $62			sta PLAYER_SCRN+2				; save it
-.1f66	b0 02		bcs $1f6a		bcs player_move_down_sprite
-.1f68	c6 63		dec $63			dec PLAYER_SCRN+3				; if wrap around, dec high byte
-.1f6a					player_move_down_sprite:
-.1f6a	ee 01 d0	inc $d001		inc SPRITE_0_Y_POSITION
-.1f6d	60		rts			rts
-.1f6e					select_player_r_anim:
-.1f6e	a2 00		ldx #$00		ldx #$00
-.1f70	bd 10 48	lda $4810,x	-	lda pacman_r_fr2, x
-.1f73	9d 40 0e	sta $0e40,x		sta SPRITE_1_DATA,x
-.1f76	e8		inx			inx
-.1f77	e0 3f		cpx #$3f		cpx #$3F
-.1f79	d0 f5		bne $1f70		bne -
-.1f7b	a2 00		ldx #$00		ldx #$00
-.1f7d	bd 50 48	lda $4850,x	-	lda pacman_r_fr3, x
-.1f80	9d 80 0e	sta $0e80,x		sta SPRITE_2_DATA,x
-.1f83	e8		inx			inx
-.1f84	e0 3f		cpx #$3f		cpx #$3F
-.1f86	d0 f5		bne $1f7d		bne -
-.1f88	60		rts			rts
-.1f89					select_player_l_anim:
-.1f89	a2 00		ldx #$00		ldx #$00
-.1f8b	bd 90 48	lda $4890,x	-	lda pacman_l_fr1, x
-.1f8e	9d 40 0e	sta $0e40,x		sta SPRITE_1_DATA,x
-.1f91	e8		inx			inx
-.1f92	e0 3f		cpx #$3f		cpx #$3F
-.1f94	d0 f5		bne $1f8b		bne -
-.1f96	a2 00		ldx #$00		ldx #$00
-.1f98	bd d0 48	lda $48d0,x	-	lda pacman_l_fr2, x
-.1f9b	9d 80 0e	sta $0e80,x		sta SPRITE_2_DATA,x
-.1f9e	e8		inx			inx
-.1f9f	e0 3f		cpx #$3f		cpx #$3F
-.1fa1	d0 f5		bne $1f98		bne -
-.1fa3	60		rts			rts
+.1f1f	ce 01 d0	dec $d001		dec SPRITE_0_Y_POSITION
+.1f22	60		rts			rts
+.1f23					player_move_down:
+.1f23	a0 a0		ldy #$a0		ldy #$a0						; what is below the player?
+.1f25	b1 62		lda ($62),y		lda (PLAYER_SCRN+2),y
+.1f27	c9 20		cmp #$20		cmp #$20
+.1f29	f0 11		beq $1f3c		beq player_move_down_yes
+.1f2b	c9 45		cmp #$45		cmp #$45
+.1f2d	f0 0d		beq $1f3c		beq player_move_down_yes
+.1f2f	c9 52		cmp #$52		cmp #$52
+.1f31	f0 09		beq $1f3c		beq player_move_down_yes
+.1f33	c9 6c		cmp #$6c		cmp #$6C
+.1f35	f0 05		beq $1f3c		beq player_move_down_yes
+.1f37	c9 7c		cmp #$7c		cmp #$7c
+.1f39	f0 01		beq $1f3c		beq player_move_down_yes
+.1f3b	60		rts			rts								; nope - exit
+.1f3c					player_move_down_yes
+.1f3c	ce 53 1c	dec $1c53		dec sprite_move_ud_bytes		; decrease the counter by 1
+.1f3f	d0 23		bne $1f64		bne player_move_down_sprite		; if its not zero, jump ahead
+.1f41	a9 14		lda #$14		lda #SPRITE_UPDOWN_STEP			; else reset it
+.1f43	8d 53 1c	sta $1c53		sta sprite_move_ud_bytes
+.1f46	a5 60		lda $60			lda PLAYER_SCRN					; subtract 39 from player screen location
+.1f48	18		clc			clc
+.1f49	69 28		adc #$28		adc #$28						; 39 memory locations = above
+.1f4b	85 60		sta $60			sta PLAYER_SCRN					; save it
+.1f4d	90 02		bcc $1f51		bcc +
+.1f4f	e6 61		inc $61			inc PLAYER_SCRN+1				; if wrap around, dec high byte
+.1f51	a5 60		lda $60		+	lda PLAYER_SCRN					; copy current location-1 to
+.1f53	85 62		sta $62			sta PLAYER_SCRN+2				; above location (to make the math easier)
+.1f55	a5 61		lda $61			lda PLAYER_SCRN+1
+.1f57	85 63		sta $63			sta PLAYER_SCRN+3
+.1f59	a5 62		lda $62			lda PLAYER_SCRN+2				; update the address 'above' the
+.1f5b	38		sec			sec								; player
+.1f5c	e9 27		sbc #$27		sbc #$27						; 39 memory locations = above
+.1f5e	85 62		sta $62			sta PLAYER_SCRN+2				; save it
+.1f60	b0 02		bcs $1f64		bcs player_move_down_sprite
+.1f62	c6 63		dec $63			dec PLAYER_SCRN+3				; if wrap around, dec high byte
+.1f64					player_move_down_sprite:
+.1f64	ee 01 d0	inc $d001		inc SPRITE_0_Y_POSITION
+.1f67	60		rts			rts
+.1f68					select_player_r_anim:
+.1f68	a2 00		ldx #$00		ldx #$00
+.1f6a	bd 10 48	lda $4810,x	-	lda pacman_r_fr2, x
+.1f6d	9d 40 0e	sta $0e40,x		sta SPRITE_1_DATA,x
+.1f70	e8		inx			inx
+.1f71	e0 3f		cpx #$3f		cpx #$3F
+.1f73	d0 f5		bne $1f6a		bne -
+.1f75	a2 00		ldx #$00		ldx #$00
+.1f77	bd 50 48	lda $4850,x	-	lda pacman_r_fr3, x
+.1f7a	9d 80 0e	sta $0e80,x		sta SPRITE_2_DATA,x
+.1f7d	e8		inx			inx
+.1f7e	e0 3f		cpx #$3f		cpx #$3F
+.1f80	d0 f5		bne $1f77		bne -
+.1f82	60		rts			rts
+.1f83					select_player_l_anim:
+.1f83	a2 00		ldx #$00		ldx #$00
+.1f85	bd 90 48	lda $4890,x	-	lda pacman_l_fr1, x
+.1f88	9d 40 0e	sta $0e40,x		sta SPRITE_1_DATA,x
+.1f8b	e8		inx			inx
+.1f8c	e0 3f		cpx #$3f		cpx #$3F
+.1f8e	d0 f5		bne $1f85		bne -
+.1f90	a2 00		ldx #$00		ldx #$00
+.1f92	bd d0 48	lda $48d0,x	-	lda pacman_l_fr2, x
+.1f95	9d 80 0e	sta $0e80,x		sta SPRITE_2_DATA,x
+.1f98	e8		inx			inx
+.1f99	e0 3f		cpx #$3f		cpx #$3F
+.1f9b	d0 f5		bne $1f92		bne -
+.1f9d	60		rts			rts
 
 ;******  Processing file: ./src/screen_data.asm
 
@@ -838,14 +837,14 @@
 >4118	a0 20 20 6f 6f 6f 20 20			.byte	$A0, $20, $20, $6F, $6F, $6F, $20, $20, $6F, $20, $20, $6F, $6F, $20, $20, $A0, $20, $20, $6F, $6F, $6F, $6F, $20, $20, $A0, $20, $20, $6F, $6F, $20, $20, $6F, $20, $20, $6F, $6F, $6F, $20, $20, $A0
 >4120	6f 20 20 6f 6f 20 20 a0 20 20 6f 6f 6f 6f 20 20
 >4130	a0 20 20 6f 6f 20 20 6f 20 20 6f 6f 6f 20 20 a0
->4140	a0 20 20 77 77 77 20 20			.byte	$A0, $20, $20, $77, $77, $77, $20, $20, $A0, $20, $20, $77, $77, $20, $20, $77, $20, $20, $A0, $77, $77, $A0, $20, $20, $20, $20, $20, $77, $77, $20, $20, $A0, $20, $20, $77, $77, $77, $20, $20, $A0
+>4140	a0 20 20 77 77 77 20 20			.byte	$A0, $20, $20, $77, $77, $77, $20, $20, $A0, $20, $20, $77, $77, $20, $20, $77, $20, $20, $A0, $77, $77, $A0, $20, $20, $77, $20, $20, $77, $77, $20, $20, $A0, $20, $20, $77, $77, $77, $20, $20, $A0
 >4148	a0 20 20 77 77 20 20 77 20 20 a0 77 77 a0 20 20
->4158	20 20 20 77 77 20 20 a0 20 20 77 77 77 20 20 a0
+>4158	77 20 20 77 77 20 20 a0 20 20 77 77 77 20 20 a0
 >4168	a0 20 45 20 45 20 45 20			.byte	$A0, $20, $45, $20, $45, $20, $45, $20, $A0, $20, $45, $20, $45, $20, $45, $20, $45, $20, $A0, $20, $20, $A0, $20, $45, $20, $45, $20, $45, $20, $45, $20, $A0, $20, $45, $20, $45, $20, $45, $20, $A0
 >4170	a0 20 45 20 45 20 45 20 45 20 a0 20 20 a0 20 45
 >4180	20 45 20 45 20 45 20 a0 20 45 20 45 20 45 20 a0
->4190	a0 d1 d1 d1 20 20 d1 d1			.byte	$A0, $D1, $D1, $D1, $20, $20, $D1, $D1, $EF, $20, $20, $D1, $D1, $D1, $D1, $F7, $20, $20, $A0, $F7, $F7, $A0, $20, $20, $F7, $D1, $D1, $D1, $D1, $20, $20, $EF, $D1, $D1, $20, $20, $D1, $D1, $D1, $A0
->4198	ef 20 20 d1 d1 d1 d1 f7 20 20 a0 f7 f7 a0 20 20
+>4190	a0 d1 d1 d1 20 20 d1 d1			.byte	$A0, $D1, $D1, $D1, $20, $20, $D1, $D1, $EF, $20, $20, $D1, $D1, $D1, $D1, $F7, $20, $20, $f9, $F9, $F9, $f9, $20, $20, $F7, $D1, $D1, $D1, $D1, $20, $20, $EF, $D1, $D1, $20, $20, $D1, $D1, $D1, $A0
+>4198	ef 20 20 d1 d1 d1 d1 f7 20 20 f9 f9 f9 f9 20 20
 >41a8	f7 d1 d1 d1 d1 20 20 ef d1 d1 20 20 d1 d1 d1 a0
 >41b8	a0 20 52 20 52 20 52 20			.byte	$A0, $20, $52, $20, $52, $20, $52, $20, $52, $20, $20, $52, $20, $52, $20, $A0, $20, $52, $20, $52, $52, $20, $52, $20, $A0, $20, $20, $52, $20, $52, $20, $52, $20, $52, $20, $52, $20, $52, $20, $A0
 >41c0	52 20 20 52 20 52 20 a0 20 52 20 52 52 20 52 20
@@ -853,9 +852,9 @@
 >41e0	a0 20 20 6f 6f 6f 20 20			.byte	$A0, $20, $20, $6F, $6F, $6F, $20, $20, $6F, $20, $20, $6F, $6F, $20, $20, $A0, $20, $20, $6F, $6F, $6F, $6F, $20, $20, $A0, $20, $20, $6F, $6F, $20, $20, $6F, $20, $20, $6F, $6F, $6F, $20, $20, $A0
 >41e8	6f 20 20 6f 6f 20 20 a0 20 20 6f 6f 6f 6f 20 20
 >41f8	a0 20 20 6f 6f 20 20 6f 20 20 6f 6f 6f 20 20 a0
->4208	a0 20 20 77 77 77 20 20			.byte	$A0, $20, $20, $77, $77, $77, $20, $20, $A0, $20, $20, $77, $77, $20, $20, $77, $20, $20, $77, $77, $77, $77, $20, $20, $20, $20, $20, $77, $77, $20, $20, $A0, $20, $20, $77, $77, $77, $20, $20, $A0
+>4208	a0 20 20 77 77 77 20 20			.byte	$A0, $20, $20, $77, $77, $77, $20, $20, $A0, $20, $20, $77, $77, $20, $20, $77, $20, $20, $77, $77, $77, $77, $20, $20, $77, $20, $20, $77, $77, $20, $20, $A0, $20, $20, $77, $77, $77, $20, $20, $A0
 >4210	a0 20 20 77 77 20 20 77 20 20 77 77 77 77 20 20
->4220	20 20 20 77 77 20 20 a0 20 20 77 77 77 20 20 a0
+>4220	77 20 20 77 77 20 20 a0 20 20 77 77 77 20 20 a0
 >4230	a0 20 45 20 45 20 45 20			.byte	$A0, $20, $45, $20, $45, $20, $45, $20, $A0, $20, $45, $20, $45, $20, $45, $20, $45, $20, $45, $20, $20, $45, $20, $45, $20, $45, $20, $45, $20, $45, $20, $A0, $20, $45, $20, $45, $20, $45, $20, $A0
 >4238	a0 20 45 20 45 20 45 20 45 20 45 20 20 45 20 45
 >4248	20 45 20 45 20 45 20 a0 20 45 20 45 20 45 20 a0
@@ -868,9 +867,9 @@
 >42a8	a0 6c 7b 6f 6f 6f 20 20			.byte	$A0, $6C, $7B, $6F, $6F, $6F, $20, $20, $6F, $20, $20, $6F, $6F, $20, $20, $A0, $20, $20, $6F, $6F, $6F, $6F, $20, $20, $A0, $20, $20, $6F, $6F, $20, $20, $6F, $20, $20, $6F, $6F, $6F, $6C, $7B, $A0
 >42b0	6f 20 20 6f 6f 20 20 a0 20 20 6f 6f 6f 6f 20 20
 >42c0	a0 20 20 6f 6f 20 20 6f 20 20 6f 6f 6f 6c 7b a0
->42d0	a0 7c 7e 77 77 77 20 20			.byte	$A0, $7C, $7E, $77, $77, $77, $20, $20, $A0, $20, $20, $77, $77, $20, $20, $77, $20, $20, $77, $77, $77, $77, $20, $20, $20, $20, $20, $77, $77, $20, $20, $A0, $20, $20, $77, $77, $77, $7C, $7E, $A0
+>42d0	a0 7c 7e 77 77 77 20 20			.byte	$A0, $7C, $7E, $77, $77, $77, $20, $20, $A0, $20, $20, $77, $77, $20, $20, $77, $20, $20, $77, $77, $77, $77, $20, $20, $77, $20, $20, $77, $77, $20, $20, $A0, $20, $20, $77, $77, $77, $7C, $7E, $A0
 >42d8	a0 20 20 77 77 20 20 77 20 20 77 77 77 77 20 20
->42e8	20 20 20 77 77 20 20 a0 20 20 77 77 77 7c 7e a0
+>42e8	77 20 20 77 77 20 20 a0 20 20 77 77 77 7c 7e a0
 >42f8	a0 20 45 20 45 20 45 20			.byte	$A0, $20, $45, $20, $45, $20, $45, $20, $A0, $20, $45, $20, $45, $20, $45, $20, $45, $20, $45, $20, $A0, $45, $20, $45, $20, $45, $20, $45, $20, $45, $20, $A0, $20, $45, $20, $45, $20, $45, $20, $A0
 >4300	a0 20 45 20 45 20 45 20 45 20 45 20 a0 45 20 45
 >4310	20 45 20 45 20 45 20 a0 20 45 20 45 20 45 20 a0

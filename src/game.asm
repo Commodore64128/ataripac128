@@ -76,6 +76,9 @@ DIR_LEFT	= $04
 CHARS_SRC	= $60
 CHARS_DEST 	= $62
 
+SPRITE_UPDOWN_STEP = $08
+SPRITE_LEFTRIGHT_STEP = $08
+
 ; addresses around player to determine movement
 PLAYER_SCRN = $60
 
@@ -157,9 +160,9 @@ player_y:
 player_direction:
 	.byte DIR_STOPPED
 sprite_move_lr_bytes:
-	.byte $08
+	.byte SPRITE_LEFTRIGHT_STEP
 sprite_move_ud_bytes:
-	.byte $0a
+	.byte SPRITE_UPDOWN_STEP
 joy_cache:
 	.byte $00
 
@@ -536,7 +539,7 @@ player_move_right:
 player_move_right_yes:
 	dec sprite_move_lr_bytes		; decrease the 8 counter by 1
 	bne player_move_right_sprite	; if its not zero, jump ahead
-	lda #$08						; else reset it to 8
+	lda #SPRITE_LEFTRIGHT_STEP		; else reset it
 	sta sprite_move_lr_bytes
 	inc PLAYER_SCRN					; ...increase the low byte of the screen matrix address
 	bne +							; ...if the low byte did not wrap around to zero, jump ahead
@@ -589,9 +592,9 @@ player_move_left:
 
 	; we can move. update the screen matrix address if we have moved to another cell
 player_move_left_yes:
-	dec sprite_move_lr_bytes			; decrease the 8 counter by 1
+	dec sprite_move_lr_bytes		; decrease the counter by 1
 	bne player_move_left_sprite		; if its not zero, jump ahead
-	lda #$08						; else reset it to 8
+	lda #SPRITE_LEFTRIGHT_STEP		; else reset it
 	sta sprite_move_lr_bytes
 	dec PLAYER_SCRN					; ...increase the low byte of the screen matrix address
 	bne +							; ...if the low byte did not wrap around to zero, jump ahead
@@ -642,7 +645,7 @@ player_move_up:
 player_move_up_yes:
 	dec sprite_move_ud_bytes		; decrease the counter by 1
 	bne player_move_up_sprite		; if its not zero, jump ahead
-	lda #$0a						; else reset it to 8
+	lda #SPRITE_UPDOWN_STEP			; else reset it
 	sta sprite_move_ud_bytes
 
 	lda PLAYER_SCRN					; subtract 39 from player screen location
@@ -673,8 +676,8 @@ player_move_up_sprite:
 player_move_down:
 ; ====================================================================
 	; can we move?
-	ldy #$51;78						; what is below the player?
-	lda (PLAYER_SCRN),y
+	ldy #$a0						; what is below the player?
+	lda (PLAYER_SCRN+2),y
 	cmp #$20
 	beq player_move_down_yes
 	cmp #$45
@@ -691,7 +694,7 @@ player_move_down:
 player_move_down_yes
 	dec sprite_move_ud_bytes		; decrease the counter by 1
 	bne player_move_down_sprite		; if its not zero, jump ahead
-	lda #$0a						; else reset it to 10
+	lda #SPRITE_UPDOWN_STEP			; else reset it
 	sta sprite_move_ud_bytes
 
 	lda PLAYER_SCRN					; subtract 39 from player screen location
