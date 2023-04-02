@@ -1,14 +1,15 @@
 
 ; 64tass Turbo Assembler Macro V1.53.1515 listing file
 ; 64tass -a -l ./target/game.lbl -L ./target/game.lst -o ./target/game ./src/game.asm
-; Fri Mar 31 09:56:29 2023
+; Sat Apr 01 20:31:20 2023
 
 ;Offset	;Hex		;Monitor	;Source
 
 ;******  Processing input file: ./src/game.asm
 
-=$64					PELLET1 = $64
-=$64					PELLET2 = $64
+
+;******  Processing file: ./src/vic.asm
+
 =$00					BLACK	= $00
 =$01					WHITE	= $01
 =$02					RED 	= $02
@@ -24,6 +25,44 @@
 =$0d					L_GREEN	= $0D
 =$0e					L_BLUE	= $0E
 =$0f					L_GRAY	= $0F
+=$d000					BASE_SPRITE_X = $D000
+=$d001					BASE_SPRITE_Y = $D001
+=$d000					SPRITE_0_X_POSITION 	= $D000
+=$d001					SPRITE_0_Y_POSITION 	= $D001
+=$d002					SPRITE_1_X_POSITION 	= $D002
+=$d003					SPRITE_1_Y_POSITION 	= $D003
+=$d004					SPRITE_2_X_POSITION 	= $D004
+=$d005					SPRITE_2_Y_POSITION 	= $D005
+=$d006					SPRITE_3_X_POSITION 	= $D006
+=$d007					SPRITE_3_Y_POSITION 	= $D007
+=$d008					SPRITE_4_X_POSITION 	= $D008
+=$d009					SPRITE_4_Y_POSITION 	= $D009
+=$d00a					SPRITE_5_X_POSITION 	= $D00A
+=$d00b					SPRITE_5_Y_POSITION 	= $D00B
+=$d00c					SPRITE_6_X_POSITION 	= $D00C
+=$d00d					SPRITE_6_Y_POSITION 	= $D00D
+=$d00e					SPRITE_7_X_POSITION 	= $D00E
+=$d00f					SPRITE_7_Y_POSITION 	= $D00F
+=$d010					SPRITE_XMSB				= $D010
+=$d011					VIC_SCROLY				= $D011
+=$d012					VIC_RASTER				= $D012
+=$d015					VIC_SPRITE_ENBL			= $D015
+=$d018					VIC_SCREEN_BASE_REG		= $D018
+=$d019					VIC_IRQ_REG				= $D019
+=$d01f					VIC_SPR_FG_COL_REG		= $D01F
+=$d020					VIC_BORDER_COLOR		= $D020
+=$d021					VIC_BACKGROUND_COLOR	= $D021
+=$d027					SPRITE_0_COLOR      	= $D027
+=$d028					SPRITE_1_COLOR      	= $D028
+=$d029					SPRITE_2_COLOR      	= $D029
+=$d02a					SPRITE_3_COLOR      	= $D02A
+=$d02b					SPRITE_4_COLOR      	= $D02B
+=$d02c					SPRITE_5_COLOR      	= $D02C
+=$d02d					SPRITE_6_COLOR      	= $D02D
+=$d02e					SPRITE_7_COLOR      	= $D02E
+
+;******  Return to file: ./src/game.asm
+
 =$0400					SCREEN_RAM				= $0400
 =$07f8					SPRITE_0_POINTER    	= $07F8 		; Last 8 Bytes of Screen RAM
 =$07f9					SPRITE_1_POINTER		= $07F9
@@ -42,18 +81,6 @@
 =$0f80					SPRITE_6_DATA       	= $0f80
 =$0fc0					SPRITE_7_DATA       	= $0fc0
 =$12fd					BASIC_IRQ_FLAG			= $12FD
-=$d000					SPRITE_0_X_POSITION 	= $D000
-=$d001					SPRITE_0_Y_POSITION 	= $D001
-=$d010					SPRITE_XMSB				= $D010
-=$d011					VIC_SCROLY				= $D011
-=$d012					VIC_RASTER				= $D012
-=$d015					SPRITE_ENBL				= $D015
-=$d018					VIC_SCREEN_BASE_REG		= $D018
-=$d019					VIC_IRQ_REG				= $D019
-=$d01f					VIC_SPR_FG_COL_REG		= $D01F
-=$d020					VIC_BORDER_COLOR		= $D020
-=$d021					VIC_BACKGROUND_COLOR	= $D021
-=$d027					SPRITE_0_COLOR      	= $D027
 =$d800					COLOR_RAM				= $D800
 =$dc00					IO_PORT_DATA_REG_A		= $DC00
 =$dd00					CIA2_PORT_REG_A			= $DD00
@@ -69,489 +96,562 @@
 =$04					DIR_LEFT	= $04
 =$60					CHARS_SRC	= $60
 =$62					CHARS_DEST 	= $62
-=$14					SPRITE_UPDOWN_STEP = $14
+=$08					SPRITE_UPDOWN_STEP = $08
 =$08					SPRITE_LEFTRIGHT_STEP = $08
-=$60					PLAYER_SCRN = $60
 =$03					SPRITE_0_FRAME_COUNT	= $03
+=$c0					sprite_num    	= $C0
+=$c1					sprite_x      	= $C1
+=$c2					sprite_y      	= $C2
+=$c3					sprite_msb2    	= $C3
+=$c4					screen_addr_lo	= $C4
+=$c5					screen_addr_hi	= $C5
+=$c6					temp          	= $C6
+=$c7					column			= $c7
+=$c8					row				= $c8
 >1c01	1c 1c 0a 00 9e 20 37 31			.byte $1c, $1c, $0A, $00, $9E, $20, $37, $31, $38, $32
 >1c09	38 32
 >1c0b	00 00 00			    .byte $00, $00, $00
 .1c0e					main:
 .1c0e	a9 3e		lda #$3e		lda #$3e
 .1c10	8d 00 ff	sta $ff00		sta MMUCR				; All RAM1 with IO block
-.1c13	20 55 1c	jsr $1c55		jsr screen_init
-.1c16	20 10 1d	jsr $1d10		jsr chars_init
-.1c19	20 be 1c	jsr $1cbe		jsr sprite_init
-.1c1c	20 b1 1c	jsr $1cb1		jsr irq_init
-.1c1f	a9 92		lda #$92		lda #$92
-.1c21	85 60		sta $60			sta PLAYER_SCRN
-.1c23	a9 06		lda #$06		lda #$06
-.1c25	85 61		sta $61			sta PLAYER_SCRN+1
-.1c27	85 63		sta $63			sta PLAYER_SCRN+3
-.1c29	a9 6b		lda #$6b		lda #$6B
-.1c2b	85 62		sta $62			sta PLAYER_SCRN+2
-.1c2d					main_loop:
-.1c2d	ad 1f d0	lda $d01f		lda VIC_SPR_FG_COL_REG
-.1c30	8d 4d 1c	sta $1c4d		sta collision_flg
-.1c33	ad 00 dc	lda $dc00		lda IO_PORT_DATA_REG_A
-.1c36	8d 54 1c	sta $1c54		sta joy_cache
-.1c39	20 ef 1d	jsr $1def		jsr joystick_handler
-.1c3c					main_collision_check:
-.1c3c	ad 4d 1c	lda $1c4d		lda collision_flg
-.1c3f	4a		lsr a			lsr a ;Sprite 0 crash into background
-.1c40	b0 03		bcs $1c45	    bcs collide
-.1c42					main_loop_end:
-.1c42	4c 2d 1c	jmp $1c2d		jmp main_loop
-.1c45					collide:
-.1c45	4c 2d 1c	jmp $1c2d		jmp main_loop
-.1c48					delay_game:
+.1c13	20 52 1c	jsr $1c52		jsr screen_init
+.1c16	20 0d 1d	jsr $1d0d		jsr chars_init
+.1c19	20 bb 1c	jsr $1cbb		jsr sprite_init
+.1c1c	20 ae 1c	jsr $1cae		jsr irq_init
+.1c1f					main_loop:
+.1c1f	ad 1f d0	lda $d01f		lda VIC_SPR_FG_COL_REG
+.1c22	8d 4a 1c	sta $1c4a		sta collision_flg
+.1c25	ad 00 dc	lda $dc00		lda IO_PORT_DATA_REG_A
+.1c28	cd 51 1c	cmp $1c51		cmp joy_cache
+.1c2b	d0 03		bne $1c30		bne +
+.1c2d	4c 36 1c	jmp $1c36		jmp main_collision_check
+.1c30	8d 51 1c	sta $1c51	+	sta joy_cache
+.1c33	20 ec 1d	jsr $1dec		jsr joystick_handler
+.1c36					main_collision_check:
+.1c36	ad 4a 1c	lda $1c4a		lda collision_flg
+.1c39	29 80		and #$80		and #$80
+.1c3b	c9 80		cmp #$80		cmp #$80
+.1c3d	f0 03		beq $1c42	    beq collide
+.1c3f					main_loop_end:
+.1c3f	4c 1f 1c	jmp $1c1f		jmp main_loop
+.1c42					collide:
+.1c42	4c 1f 1c	jmp $1c1f		jmp main_loop
+.1c45					delay_game:
+>1c45	ff					.byte $ff
+.1c46					delay_pp:
+>1c46	ff					.byte $ff
+.1c47					delay_plyr_anim:
+>1c47	ff					.byte $ff
+.1c48					delay_plyr_move:
 >1c48	ff					.byte $ff
-.1c49					delay_pp:
->1c49	ff					.byte $ff
-.1c4a					delay_plyr_anim:
->1c4a	ff					.byte $ff
-.1c4b					delay_plyr_move:
->1c4b	ff					.byte $ff
-.1c4c					sprite_0_fr_count:
->1c4c	03					.byte SPRITE_0_FRAME_COUNT
-.1c4d					collision_flg:
->1c4d	00					.byte $00
-.1c4e					player_x:
->1c4e	00 b0					.byte $00, $b0
-.1c50					player_y:
->1c50	b0					.byte $b0
-.1c51					player_direction:
->1c51	00					.byte DIR_STOPPED
-.1c52					sprite_move_lr_bytes:
->1c52	08					.byte SPRITE_LEFTRIGHT_STEP
-.1c53					sprite_move_ud_bytes:
->1c53	14					.byte SPRITE_UPDOWN_STEP
-.1c54					joy_cache:
->1c54	00					.byte $00
-.1c55					screen_init:
-.1c55	a9 ff		lda #$ff		lda #$ff
-.1c57	85 d8		sta $d8			sta $d8
-.1c59	a9 01		lda #$01		lda #$01
-.1c5b	8d fd 12	sta $12fd		sta BASIC_IRQ_FLAG
-.1c5e	ad 00 dd	lda $dd00		lda CIA2_PORT_REG_A
-.1c61	29 fc		and #$fc		and #%11111100
-.1c63	09 03		ora #$03		ora #%00000011	; last two bits determine bank
-.1c65	a9 1c		lda #$1c		lda #$1c
-.1c67	8d 18 d0	sta $d018		sta VIC_SCREEN_BASE_REG
-.1c6a	a9 00		lda #$00		lda #BLACK
-.1c6c	8d 20 d0	sta $d020		sta VIC_BORDER_COLOR
-.1c6f	a9 06		lda #$06		lda #BLUE
-.1c71	8d 21 d0	sta $d021		sta VIC_BACKGROUND_COLOR
-.1c74	a9 00		lda #$00		lda #<scr_data
-.1c76	a2 40		ldx #$40		ldx #>scr_data
-.1c78	85 64		sta $64			sta $64
-.1c7a	86 65		stx $65			stx $65
-.1c7c	a9 00		lda #$00		lda #<SCREEN_RAM
-.1c7e	a2 04		ldx #$04		ldx #>SCREEN_RAM
-.1c80	85 66		sta $66			sta $66
-.1c82	86 67		stx $67			stx $67
-.1c84	a9 e8		lda #$e8		lda #<scr_color
-.1c86	a2 43		ldx #$43		ldx #>scr_color
-.1c88	85 62		sta $62			sta $62
-.1c8a	86 63		stx $63			stx $63
-.1c8c	a9 00		lda #$00		lda #<COLOR_RAM
-.1c8e	a2 d8		ldx #$d8		ldx #>COLOR_RAM
-.1c90	85 60		sta $60			sta $60
-.1c92	86 61		stx $61			stx $61
-.1c94	a2 00		ldx #$00		ldx #$00
-.1c96					screen_l0:
-.1c96	a0 00		ldy #$00		ldy #$00
-.1c98	b1 64		lda ($64),y	-	lda ($64),y
-.1c9a	91 66		sta ($66),y		sta ($66),y
-.1c9c	b1 62		lda ($62),y		lda ($62),y
-.1c9e	91 60		sta ($60),y		sta ($60),y
-.1ca0	c8		iny			iny
-.1ca1	d0 f5		bne $1c98		bne -
-.1ca3	e6 67		inc $67			inc $67
-.1ca5	e6 61		inc $61			inc $61
-.1ca7	e6 65		inc $65			inc $65
-.1ca9	e6 63		inc $63			inc $63
-.1cab	e8		inx			inx
-.1cac	e0 04		cpx #$04		cpx #$04
-.1cae	d0 e6		bne $1c96		bne screen_l0
-.1cb0	60		rts			rts
-.1cb1					irq_init:
-.1cb1	78		sei			sei
-.1cb2	a9 1d		lda #$1d		lda #>irq_handler
-.1cb4	8d 15 03	sta $0315		sta $315
-.1cb7	a9 47		lda #$47		lda #<irq_handler
-.1cb9	8d 14 03	sta $0314		sta $314
-.1cbc	58		cli			cli
-.1cbd	60		rts			rts
-.1cbe					sprite_init:
-.1cbe	a9 38		lda #$38	  	lda #56					; use default spr 0 pointer location (56x64=3584=$0e00)
-.1cc0	8d f8 07	sta $07f8	  	sta SPRITE_0_POINTER
-.1cc3	a9 01		lda #$01		lda #$01              	; enable...Sprite 0 => %0000 0001 (all sprites off except Sprite 0)
-.1cc5	8d 15 d0	sta $d015	  	sta SPRITE_ENBL
-.1cc8	a9 07		lda #$07		lda #YELLOW				; set sprite 0 foreground color
-.1cca	8d 27 d0	sta $d027	  	sta SPRITE_0_COLOR
-.1ccd	a2 00		ldx #$00		ldx #$00
-.1ccf	bd d0 47	lda $47d0,x	-	lda pacman_r_fr1, x
-.1cd2	9d 00 0e	sta $0e00,x		sta SPRITE_0_DATA,x
-.1cd5	e8		inx			inx
-.1cd6	e0 3f		cpx #$3f		cpx #$3F
-.1cd8	d0 f5		bne $1ccf		bne -
-.1cda	a2 00		ldx #$00		ldx #$00
-.1cdc	bd 10 48	lda $4810,x	-	lda pacman_r_fr2, x
-.1cdf	9d 40 0e	sta $0e40,x		sta SPRITE_1_DATA,x
-.1ce2	e8		inx			inx
-.1ce3	e0 3f		cpx #$3f		cpx #$3F
-.1ce5	d0 f5		bne $1cdc		bne -
-.1ce7	a2 00		ldx #$00		ldx #$00
-.1ce9	bd 50 48	lda $4850,x	-	lda pacman_r_fr3, x
-.1cec	9d 80 0e	sta $0e80,x		sta SPRITE_2_DATA,x
-.1cef	e8		inx			inx
-.1cf0	e0 3f		cpx #$3f		cpx #$3F
-.1cf2	d0 f5		bne $1ce9		bne -
-.1cf4	ad 4e 1c	lda $1c4e		lda player_x
-.1cf7	8d 10 d0	sta $d010		sta SPRITE_XMSB
-.1cfa	ad 4f 1c	lda $1c4f		lda player_x+1
-.1cfd	8d 00 d0	sta $d000		sta SPRITE_0_X_POSITION
-.1d00	ad 50 1c	lda $1c50		lda player_y
-.1d03	8d 01 d0	sta $d001		sta SPRITE_0_Y_POSITION
-.1d06	60		rts			rts
-.1d07					movement_r0:
->1d07	23 02 03 02				.byte $23, 2, DIR_RIGHT, DIR_DOWN
-.1d0b					pacman_dir:
->1d0b	00					.byte $00	; 0-stopped, 1-up, 2-down, 3-right, 4-left
-.1d0c					ghost1_dir:
+.1c49					sprite_0_fr_count:
+>1c49	03					.byte SPRITE_0_FRAME_COUNT
+.1c4a					collision_flg:
+>1c4a	00					.byte $00
+.1c4b					player_x:
+>1c4b	00 b0					.byte $00, $b0
+.1c4d					player_y:
+>1c4d	b0					.byte $b0
+.1c4e					player_direction:
+>1c4e	00					.byte DIR_STOPPED
+.1c4f					sprite_move_lr_bytes:
+>1c4f	08					.byte SPRITE_LEFTRIGHT_STEP
+.1c50					sprite_move_ud_bytes:
+>1c50	08					.byte SPRITE_UPDOWN_STEP
+.1c51					joy_cache:
+>1c51	00					.byte $00
+.1c52					screen_init:
+.1c52	a9 ff		lda #$ff		lda #$ff
+.1c54	85 d8		sta $d8			sta $d8
+.1c56	a9 01		lda #$01		lda #$01
+.1c58	8d fd 12	sta $12fd		sta BASIC_IRQ_FLAG
+.1c5b	ad 00 dd	lda $dd00		lda CIA2_PORT_REG_A
+.1c5e	29 fc		and #$fc		and #%11111100
+.1c60	09 03		ora #$03		ora #%00000011	; last two bits determine bank
+.1c62	a9 1c		lda #$1c		lda #$1c
+.1c64	8d 18 d0	sta $d018		sta VIC_SCREEN_BASE_REG
+.1c67	a9 00		lda #$00		lda #BLACK
+.1c69	8d 20 d0	sta $d020		sta VIC_BORDER_COLOR
+.1c6c	a9 06		lda #$06		lda #BLUE
+.1c6e	8d 21 d0	sta $d021		sta VIC_BACKGROUND_COLOR
+.1c71	a9 00		lda #$00		lda #<scr_data
+.1c73	a2 40		ldx #$40		ldx #>scr_data
+.1c75	85 64		sta $64			sta $64
+.1c77	86 65		stx $65			stx $65
+.1c79	a9 00		lda #$00		lda #<SCREEN_RAM
+.1c7b	a2 04		ldx #$04		ldx #>SCREEN_RAM
+.1c7d	85 66		sta $66			sta $66
+.1c7f	86 67		stx $67			stx $67
+.1c81	a9 e8		lda #$e8		lda #<scr_color
+.1c83	a2 43		ldx #$43		ldx #>scr_color
+.1c85	85 62		sta $62			sta $62
+.1c87	86 63		stx $63			stx $63
+.1c89	a9 00		lda #$00		lda #<COLOR_RAM
+.1c8b	a2 d8		ldx #$d8		ldx #>COLOR_RAM
+.1c8d	85 60		sta $60			sta $60
+.1c8f	86 61		stx $61			stx $61
+.1c91	a2 00		ldx #$00		ldx #$00
+.1c93					screen_l0:
+.1c93	a0 00		ldy #$00		ldy #$00
+.1c95	b1 64		lda ($64),y	-	lda ($64),y
+.1c97	91 66		sta ($66),y		sta ($66),y
+.1c99	b1 62		lda ($62),y		lda ($62),y
+.1c9b	91 60		sta ($60),y		sta ($60),y
+.1c9d	c8		iny			iny
+.1c9e	d0 f5		bne $1c95		bne -
+.1ca0	e6 67		inc $67			inc $67
+.1ca2	e6 61		inc $61			inc $61
+.1ca4	e6 65		inc $65			inc $65
+.1ca6	e6 63		inc $63			inc $63
+.1ca8	e8		inx			inx
+.1ca9	e0 04		cpx #$04		cpx #$04
+.1cab	d0 e6		bne $1c93		bne screen_l0
+.1cad	60		rts			rts
+.1cae					irq_init:
+.1cae	78		sei			sei
+.1caf	a9 1d		lda #$1d		lda #>irq_handler
+.1cb1	8d 15 03	sta $0315		sta $315
+.1cb4	a9 44		lda #$44		lda #<irq_handler
+.1cb6	8d 14 03	sta $0314		sta $314
+.1cb9	58		cli			cli
+.1cba	60		rts			rts
+.1cbb					sprite_init:
+.1cbb	a9 38		lda #$38	  	lda #56					; use default spr 0 pointer location (56x64=3584=$0e00)
+.1cbd	8d f8 07	sta $07f8	  	sta SPRITE_0_POINTER
+.1cc0	a9 01		lda #$01		lda #$01              	; enable...Sprite 0 => %0000 0001 (all sprites off except Sprite 0)
+.1cc2	8d 15 d0	sta $d015	  	sta VIC_SPRITE_ENBL
+.1cc5	a9 07		lda #$07		lda #YELLOW				; set sprite 0 foreground color
+.1cc7	8d 27 d0	sta $d027	  	sta SPRITE_0_COLOR
+.1cca	a2 00		ldx #$00		ldx #$00
+.1ccc	bd d0 47	lda $47d0,x	-	lda pacman_r_fr1, x
+.1ccf	9d 00 0e	sta $0e00,x		sta SPRITE_0_DATA,x
+.1cd2	e8		inx			inx
+.1cd3	e0 3f		cpx #$3f		cpx #$3F
+.1cd5	d0 f5		bne $1ccc		bne -
+.1cd7	a2 00		ldx #$00		ldx #$00
+.1cd9	bd 10 48	lda $4810,x	-	lda pacman_r_fr2, x
+.1cdc	9d 40 0e	sta $0e40,x		sta SPRITE_1_DATA,x
+.1cdf	e8		inx			inx
+.1ce0	e0 3f		cpx #$3f		cpx #$3F
+.1ce2	d0 f5		bne $1cd9		bne -
+.1ce4	a2 00		ldx #$00		ldx #$00
+.1ce6	bd 50 48	lda $4850,x	-	lda pacman_r_fr3, x
+.1ce9	9d 80 0e	sta $0e80,x		sta SPRITE_2_DATA,x
+.1cec	e8		inx			inx
+.1ced	e0 3f		cpx #$3f		cpx #$3F
+.1cef	d0 f5		bne $1ce6		bne -
+.1cf1	ad 4b 1c	lda $1c4b		lda player_x
+.1cf4	8d 10 d0	sta $d010		sta SPRITE_XMSB
+.1cf7	ad 4c 1c	lda $1c4c		lda player_x+1
+.1cfa	8d 00 d0	sta $d000		sta SPRITE_0_X_POSITION
+.1cfd	ad 4d 1c	lda $1c4d		lda player_y
+.1d00	8d 01 d0	sta $d001		sta SPRITE_0_Y_POSITION
+.1d03	60		rts			rts
+.1d04					movement_r0:
+>1d04	23 02 03 02				.byte $23, 2, DIR_RIGHT, DIR_DOWN
+.1d08					pacman_dir:
+>1d08	00					.byte $00	; 0-stopped, 1-up, 2-down, 3-right, 4-left
+.1d09					ghost1_dir:
+>1d09	00					.byte $00
+.1d0a					ghost2_dir:
+>1d0a	00					.byte $00
+.1d0b					ghost3_dir:
+>1d0b	00					.byte $00
+.1d0c					ghost4_dir:
 >1d0c	00					.byte $00
-.1d0d					ghost2_dir:
->1d0d	00					.byte $00
-.1d0e					ghost3_dir:
->1d0e	00					.byte $00
-.1d0f					ghost4_dir:
->1d0f	00					.byte $00
-.1d10					chars_init:
-.1d10	78		sei			sei					; best to disable interrupts
-.1d11	a9 1c		lda #$1c		lda #$1c
-.1d13	8d 18 d0	sta $d018		sta VIC_SCREEN_BASE_REG
-.1d16	a9 ff		lda #$ff		lda #$ff
-.1d18	85 d8		sta $d8			sta $d8
-.1d1a	a9 01		lda #$01		lda #$01
-.1d1c	8d fd 12	sta $12fd		sta BASIC_IRQ_FLAG
-.1d1f	a9 30		lda #$30		lda #>$3000     		; move chars to $3000
-.1d21	85 63		sta $63			sta CHARS_DEST+1
-.1d23	a9 38		lda #$38		lda #>char_data     	; from $d800 for rom (or start of cust char set) (lower-case)
-.1d25	85 61		sta $61			sta CHARS_SRC+1
-.1d27	a0 00		ldy #$00		ldy #<char_data
-.1d29	84 60		sty $60			sty CHARS_SRC
-.1d2b	a0 00		ldy #$00		ldy #$00
-.1d2d	84 62		sty $62			sty CHARS_DEST
-.1d2f	a2 10		ldx #$10		ldx #$10        	; copy 2k of data.
-.1d31	b1 60		lda ($60),y	- 	lda (CHARS_SRC),y	; copy byte.
-.1d33	91 62		sta ($62),y		sta (CHARS_DEST),y
-.1d35	c8		iny			iny
-.1d36	d0 f9		bne $1d31		bne -           	; continue until .Y = 0.
-.1d38	e6 61		inc $61			inc CHARS_SRC+1     ; increase source & dest by 256
-.1d3a	e6 63		inc $63			inc CHARS_DEST+1
-.1d3c	ca		dex			dex             	; decrease .X count.
-.1d3d	d0 f2		bne $1d31		bne -           	; if non-zero then continue copying, else
-.1d3f	a5 01		lda $01			lda $01				; turn bit 2 of $01 on
-.1d41	09 04		ora #$04		ora #$04			; which tells system to use
-.1d43	85 01		sta $01			sta $01         	; VIC ram-based character set instead of rom
-.1d45	58		cli			cli
-.1d46	60		rts			rts             	; and return.
-.1d47					irq_handler:
-.1d47	ce 49 1c	dec $1c49		dec delay_pp
-.1d4a	ce 4a 1c	dec $1c4a		dec delay_plyr_anim
-.1d4d	ce 4b 1c	dec $1c4b		dec delay_plyr_move
-.1d50					irq_pp_anim_check:
-.1d50	ad 49 1c	lda $1c49		lda delay_pp
-.1d53	c9 f0		cmp #$f0		cmp #$f0
-.1d55	10 43		bpl $1d9a		bpl irq_plyr_anim_check
-.1d57	a9 ff		lda #$ff		lda #$ff
-.1d59	8d 49 1c	sta $1c49		sta delay_pp
-.1d5c					irq_pp_anim:
-.1d5c	ad 51 d8	lda $d851		lda COLOR_RAM + PP1_OFFSET
-.1d5f	c9 08		cmp #$08		cmp #BROWN
-.1d61	f0 05		beq $1d68		beq +
-.1d63	a9 08		lda #$08		lda #BROWN
-.1d65	4c 6a 1d	jmp $1d6a		jmp irq_pp_flash
-.1d68	a9 07		lda #$07	+	lda #YELLOW
-.1d6a					irq_pp_flash:
-.1d6a	8d 51 d8	sta $d851		sta COLOR_RAM + PP1_OFFSET
-.1d6d	8d 52 d8	sta $d852		sta COLOR_RAM + PP1_OFFSET + 1
-.1d70	8d 79 d8	sta $d879		sta COLOR_RAM + PP1_OFFSET + 40
-.1d73	8d 7a d8	sta $d87a		sta COLOR_RAM + PP1_OFFSET + 41
-.1d76	8d 75 d8	sta $d875		sta COLOR_RAM + $75
-.1d79	8d 76 d8	sta $d876		sta COLOR_RAM + $75 + 1
-.1d7c	8d 9d d8	sta $d89d		sta COLOR_RAM + $75 + 40
-.1d7f	8d 9e d8	sta $d89e		sta COLOR_RAM + $75 + 41
-.1d82	8d a9 da	sta $daa9		sta COLOR_RAM + $2a9
-.1d85	8d aa da	sta $daaa		sta COLOR_RAM + $2a9 + 1
-.1d88	8d d1 da	sta $dad1		sta COLOR_RAM + $2a9 + 40
-.1d8b	8d d2 da	sta $dad2		sta COLOR_RAM + $2a9 + 41
-.1d8e	8d cd da	sta $dacd		sta COLOR_RAM + $2cd
-.1d91	8d ce da	sta $dace		sta COLOR_RAM + $2cd + 1
-.1d94	8d f5 da	sta $daf5		sta COLOR_RAM + $2cd + 40
-.1d97	8d f6 da	sta $daf6		sta COLOR_RAM + $2cd + 41
-.1d9a					irq_plyr_anim_check:
-.1d9a	ad 4a 1c	lda $1c4a		lda delay_plyr_anim
-.1d9d	c9 f5		cmp #$f5		cmp #$f5
-.1d9f	10 1a		bpl $1dbb		bpl irq_player_move_check
-.1da1	a9 ff		lda #$ff		lda #$ff
-.1da3	8d 4a 1c	sta $1c4a		sta delay_plyr_anim
-.1da6					irq_player_anim:
-.1da6	ce 4c 1c	dec $1c4c		dec sprite_0_fr_count
-.1da9	d0 0d		bne $1db8		bne +
-.1dab	a9 38		lda #$38		lda #56						; reset to first anim frame
-.1dad	8d f8 07	sta $07f8		sta SPRITE_0_POINTER
-.1db0	a2 03		ldx #$03		ldx #SPRITE_0_FRAME_COUNT
-.1db2	8e 4c 1c	stx $1c4c		stx sprite_0_fr_count
-.1db5	4c ec 1d	jmp $1dec		jmp irq_end
-.1db8	ee f8 07	inc $07f8	+	inc SPRITE_0_POINTER
-.1dbb					irq_player_move_check:
-.1dbb	ad 51 1c	lda $1c51		lda player_direction
-.1dbe	c9 01		cmp #$01		cmp #DIR_UP
-.1dc0	d0 06		bne $1dc8		bne +
-.1dc2	20 de 1e	jsr $1ede		jsr player_move_up
-.1dc5	4c ec 1d	jmp $1dec		jmp irq_end
-.1dc8	ad 51 1c	lda $1c51	+	lda player_direction
-.1dcb	c9 02		cmp #$02		cmp #DIR_DOWN
-.1dcd	d0 06		bne $1dd5		bne +
-.1dcf	20 23 1f	jsr $1f23		jsr player_move_down
-.1dd2	4c ec 1d	jmp $1dec		jmp irq_end
-.1dd5	ad 51 1c	lda $1c51	+	lda player_direction
-.1dd8	c9 03		cmp #$03		cmp #DIR_RIGHT
-.1dda	d0 06		bne $1de2		bne +
-.1ddc	20 34 1e	jsr $1e34		jsr player_move_right
-.1ddf	4c ec 1d	jmp $1dec		jmp irq_end
-.1de2	ad 51 1c	lda $1c51	+	lda player_direction
-.1de5	c9 04		cmp #$04		cmp #DIR_LEFT
-.1de7	d0 03		bne $1dec		bne irq_end
-.1de9	20 89 1e	jsr $1e89		jsr player_move_left
-.1dec					irq_end
-.1dec	4c 65 fa	jmp $fa65		jmp $fa65
-.1def					joystick_handler:
-.1def	ad 54 1c	lda $1c54		lda joy_cache
-.1df2	29 08		and #$08		and #$08
-.1df4	d0 0b		bne $1e01		bne +
-.1df6	a9 03		lda #$03		lda #DIR_RIGHT
-.1df8	8d 51 1c	sta $1c51		sta player_direction
-.1dfb	20 68 1f	jsr $1f68		jsr select_player_r_anim
-.1dfe	4c 2e 1e	jmp $1e2e		jmp joystick_end
-.1e01	ad 54 1c	lda $1c54	+	lda joy_cache
-.1e04	29 04		and #$04		and #$04
-.1e06	d0 0b		bne $1e13		bne +
-.1e08	a9 04		lda #$04		lda #DIR_LEFT
-.1e0a	8d 51 1c	sta $1c51		sta player_direction
-.1e0d	20 83 1f	jsr $1f83		jsr select_player_l_anim
-.1e10	4c 2e 1e	jmp $1e2e		jmp joystick_end
-.1e13	ad 54 1c	lda $1c54	+	lda joy_cache
-.1e16	29 01		and #$01		and #$01
-.1e18	d0 08		bne $1e22		bne +
-.1e1a	a9 01		lda #$01		lda #DIR_UP
-.1e1c	8d 51 1c	sta $1c51		sta player_direction
-.1e1f	4c 2e 1e	jmp $1e2e		jmp joystick_end
-.1e22	ad 54 1c	lda $1c54	+	lda joy_cache
-.1e25	29 02		and #$02		and #$02
-.1e27	d0 05		bne $1e2e		bne joystick_end
-.1e29	a9 02		lda #$02		lda #DIR_DOWN
-.1e2b	8d 51 1c	sta $1c51		sta player_direction
-.1e2e					joystick_end:
-.1e2e	a9 00		lda #$00		lda #$00
-.1e30	8d 54 1c	sta $1c54		sta joy_cache
-.1e33	60		rts			rts
-.1e34					player_move_right:
-.1e34	a0 03		ldy #$03		ldy #$03						; character position is one behind the sprite location
-.1e36	b1 60		lda ($60),y		lda (PLAYER_SCRN),y 			; so we can check in front and behind.  In this case we add 3 to look ahead
-.1e38	c9 20		cmp #$20		cmp #$20
-.1e3a	f0 19		beq $1e55		beq player_move_right_yes
-.1e3c	c9 45		cmp #$45		cmp #$45
-.1e3e	f0 15		beq $1e55		beq player_move_right_yes
-.1e40	c9 52		cmp #$52		cmp #$52
-.1e42	f0 11		beq $1e55		beq player_move_right_yes
-.1e44	c9 6c		cmp #$6c		cmp #$6C
-.1e46	f0 0d		beq $1e55		beq player_move_right_yes
-.1e48	c9 7c		cmp #$7c		cmp #$7c
-.1e4a	f0 09		beq $1e55		beq player_move_right_yes
-.1e4c	c9 6f		cmp #$6f		cmp #$6f
-.1e4e	f0 05		beq $1e55		beq player_move_right_yes
-.1e50	c9 77		cmp #$77		cmp #$77
-.1e52	f0 01		beq $1e55		beq player_move_right_yes
-.1e54	60		rts			rts								; nope - exit
-.1e55					player_move_right_yes:
-.1e55	ce 52 1c	dec $1c52		dec sprite_move_lr_bytes		; decrease the 8 counter by 1
-.1e58	d0 1e		bne $1e78		bne player_move_right_sprite	; if its not zero, jump ahead
-.1e5a	a9 08		lda #$08		lda #SPRITE_LEFTRIGHT_STEP		; else reset it
-.1e5c	8d 52 1c	sta $1c52		sta sprite_move_lr_bytes
-.1e5f	e6 60		inc $60			inc PLAYER_SCRN					; ...increase the low byte of the screen matrix address
-.1e61	d0 02		bne $1e65		bne +							; ...if the low byte did not wrap around to zero, jump ahead
-.1e63	e6 61		inc $61			inc PLAYER_SCRN+1				; ...else increase the high byte of the screen matrix address
-.1e65	a5 60		lda $60		+	lda PLAYER_SCRN					; copy current location-1 to
-.1e67	85 62		sta $62			sta PLAYER_SCRN+2				; above location (to make the math easier)
-.1e69	a5 61		lda $61			lda PLAYER_SCRN+1
-.1e6b	85 63		sta $63			sta PLAYER_SCRN+3
-.1e6d	a5 62		lda $62			lda PLAYER_SCRN+2				; update the address 'above' the
-.1e6f	38		sec			sec								; player
-.1e70	e9 27		sbc #$27		sbc #$27						; 39 memory locations = above
-.1e72	85 62		sta $62			sta PLAYER_SCRN+2				; save it
-.1e74	b0 02		bcs $1e78		bcs player_move_right_sprite
-.1e76	c6 63		dec $63			dec PLAYER_SCRN+3				; if wrap around, dec high byte
-.1e78					player_move_right_sprite:
-.1e78	18		clc			clc
-.1e79	ad 00 d0	lda $d000		lda SPRITE_0_X_POSITION
-.1e7c	69 01		adc #$01		adc #$01
-.1e7e	90 05		bcc $1e85		bcc +
-.1e80	a2 01		ldx #$01		ldx #$01
-.1e82	8e 10 d0	stx $d010		stx SPRITE_XMSB
-.1e85	8d 00 d0	sta $d000	+	sta SPRITE_0_X_POSITION
-.1e88	60		rts			rts
-.1e89					player_move_left:
-.1e89	a0 00		ldy #$00		ldy #$00
-.1e8b	b1 60		lda ($60),y		lda (PLAYER_SCRN),y
-.1e8d	c9 20		cmp #$20		cmp #$20
-.1e8f	f0 19		beq $1eaa		beq player_move_left_yes
-.1e91	c9 45		cmp #$45		cmp #$45
-.1e93	f0 15		beq $1eaa		beq player_move_left_yes
-.1e95	c9 52		cmp #$52		cmp #$52
-.1e97	f0 11		beq $1eaa		beq player_move_left_yes
-.1e99	c9 6c		cmp #$6c		cmp #$6C
-.1e9b	f0 0d		beq $1eaa		beq player_move_left_yes
-.1e9d	c9 7c		cmp #$7c		cmp #$7c
-.1e9f	f0 09		beq $1eaa		beq player_move_left_yes
-.1ea1	c9 6f		cmp #$6f		cmp #$6f
-.1ea3	f0 05		beq $1eaa		beq player_move_left_yes
-.1ea5	c9 77		cmp #$77		cmp #$77
-.1ea7	f0 01		beq $1eaa		beq player_move_left_yes
-.1ea9	60		rts			rts								; nope - exit
-.1eaa					player_move_left_yes:
-.1eaa	ce 52 1c	dec $1c52		dec sprite_move_lr_bytes		; decrease the counter by 1
-.1ead	d0 1e		bne $1ecd		bne player_move_left_sprite		; if its not zero, jump ahead
-.1eaf	a9 08		lda #$08		lda #SPRITE_LEFTRIGHT_STEP		; else reset it
-.1eb1	8d 52 1c	sta $1c52		sta sprite_move_lr_bytes
-.1eb4	c6 60		dec $60			dec PLAYER_SCRN					; ...increase the low byte of the screen matrix address
-.1eb6	d0 02		bne $1eba		bne +							; ...if the low byte did not wrap around to zero, jump ahead
-.1eb8	c6 61		dec $61			dec PLAYER_SCRN+1				; ...else increase the high byte of the screen matrix address
-.1eba	a5 60		lda $60		+	lda PLAYER_SCRN					; copy current location-1 to
-.1ebc	85 62		sta $62			sta PLAYER_SCRN+2				; above location (to make the math easier)
-.1ebe	a5 61		lda $61			lda PLAYER_SCRN+1
-.1ec0	85 63		sta $63			sta PLAYER_SCRN+3
-.1ec2	a5 62		lda $62			lda PLAYER_SCRN+2				; update the address 'above' the
-.1ec4	38		sec			sec								; player
-.1ec5	e9 27		sbc #$27		sbc #$27						; 39 memory locations = above
-.1ec7	85 62		sta $62			sta PLAYER_SCRN+2				; save it
-.1ec9	b0 02		bcs $1ecd		bcs player_move_left_sprite
-.1ecb	c6 63		dec $63			dec PLAYER_SCRN+3				; if wrap around, dec high byte
-.1ecd					player_move_left_sprite
-.1ecd	38		sec			sec
-.1ece	ad 00 d0	lda $d000		lda SPRITE_0_X_POSITION
-.1ed1	e9 01		sbc #$01		sbc #$01
-.1ed3	b0 05		bcs $1eda		bcs +
-.1ed5	a2 00		ldx #$00		ldx #$00
-.1ed7	8e 10 d0	stx $d010		stx SPRITE_XMSB
-.1eda	8d 00 d0	sta $d000	+	sta SPRITE_0_X_POSITION
-.1edd	60		rts			rts
-.1ede					player_move_up:
-.1ede	a0 00		ldy #$00		ldy #$00
-.1ee0	b1 62		lda ($62),y		lda (PLAYER_SCRN+2),y
-.1ee2	c9 20		cmp #$20		cmp #$20
-.1ee4	f0 11		beq $1ef7		beq player_move_up_yes
-.1ee6	c9 45		cmp #$45		cmp #$45
-.1ee8	f0 0d		beq $1ef7		beq player_move_up_yes
-.1eea	c9 52		cmp #$52		cmp #$52
-.1eec	f0 09		beq $1ef7		beq player_move_up_yes
-.1eee	c9 6c		cmp #$6c		cmp #$6C
-.1ef0	f0 05		beq $1ef7		beq player_move_up_yes
-.1ef2	c9 7c		cmp #$7c		cmp #$7c
-.1ef4	f0 01		beq $1ef7		beq player_move_up_yes
-.1ef6	60		rts			rts								; nope - exit
-.1ef7					player_move_up_yes:
-.1ef7	ce 53 1c	dec $1c53		dec sprite_move_ud_bytes		; decrease the counter by 1
-.1efa	d0 23		bne $1f1f		bne player_move_up_sprite		; if its not zero, jump ahead
-.1efc	a9 08		lda #$08		lda #$08 ;SPRITE_UPDOWN_STEP			; else reset it
-.1efe	8d 53 1c	sta $1c53		sta sprite_move_ud_bytes
-.1f01	a5 60		lda $60			lda PLAYER_SCRN					; subtract 39 from player screen location
-.1f03	38		sec			sec
-.1f04	e9 28		sbc #$28		sbc #$28						; 39 memory locations = above
-.1f06	85 60		sta $60			sta PLAYER_SCRN					; save it
-.1f08	b0 02		bcs $1f0c		bcs +
-.1f0a	c6 61		dec $61			dec PLAYER_SCRN+1				; if wrap around, dec high byte
-.1f0c	a5 60		lda $60		+	lda PLAYER_SCRN					; copy current location-1 to
-.1f0e	85 62		sta $62			sta PLAYER_SCRN+2				; above location (to make the math easier)
-.1f10	a5 61		lda $61			lda PLAYER_SCRN+1
-.1f12	85 63		sta $63			sta PLAYER_SCRN+3
-.1f14	a5 62		lda $62			lda PLAYER_SCRN+2				; update the address 'above' the
-.1f16	38		sec			sec								; player
-.1f17	e9 27		sbc #$27		sbc #$27						; 39 memory locations = above
-.1f19	85 62		sta $62			sta PLAYER_SCRN+2				; save it
-.1f1b	b0 02		bcs $1f1f		bcs player_move_up_sprite
-.1f1d	c6 63		dec $63			dec PLAYER_SCRN+3				; if wrap around, dec high byte
-.1f1f					player_move_up_sprite:
-.1f1f	ce 01 d0	dec $d001		dec SPRITE_0_Y_POSITION
-.1f22	60		rts			rts
-.1f23					player_move_down:
-.1f23	a0 a0		ldy #$a0		ldy #$a0						; what is below the player?
-.1f25	b1 62		lda ($62),y		lda (PLAYER_SCRN+2),y
-.1f27	c9 20		cmp #$20		cmp #$20
-.1f29	f0 11		beq $1f3c		beq player_move_down_yes
-.1f2b	c9 45		cmp #$45		cmp #$45
-.1f2d	f0 0d		beq $1f3c		beq player_move_down_yes
-.1f2f	c9 52		cmp #$52		cmp #$52
-.1f31	f0 09		beq $1f3c		beq player_move_down_yes
-.1f33	c9 6c		cmp #$6c		cmp #$6C
-.1f35	f0 05		beq $1f3c		beq player_move_down_yes
-.1f37	c9 7c		cmp #$7c		cmp #$7c
-.1f39	f0 01		beq $1f3c		beq player_move_down_yes
-.1f3b	60		rts			rts								; nope - exit
-.1f3c					player_move_down_yes
-.1f3c	ce 53 1c	dec $1c53		dec sprite_move_ud_bytes		; decrease the counter by 1
-.1f3f	d0 23		bne $1f64		bne player_move_down_sprite		; if its not zero, jump ahead
-.1f41	a9 14		lda #$14		lda #SPRITE_UPDOWN_STEP			; else reset it
-.1f43	8d 53 1c	sta $1c53		sta sprite_move_ud_bytes
-.1f46	a5 60		lda $60			lda PLAYER_SCRN					; subtract 39 from player screen location
-.1f48	18		clc			clc
-.1f49	69 28		adc #$28		adc #$28						; 39 memory locations = above
-.1f4b	85 60		sta $60			sta PLAYER_SCRN					; save it
-.1f4d	90 02		bcc $1f51		bcc +
-.1f4f	e6 61		inc $61			inc PLAYER_SCRN+1				; if wrap around, dec high byte
-.1f51	a5 60		lda $60		+	lda PLAYER_SCRN					; copy current location-1 to
-.1f53	85 62		sta $62			sta PLAYER_SCRN+2				; above location (to make the math easier)
-.1f55	a5 61		lda $61			lda PLAYER_SCRN+1
-.1f57	85 63		sta $63			sta PLAYER_SCRN+3
-.1f59	a5 62		lda $62			lda PLAYER_SCRN+2				; update the address 'above' the
-.1f5b	38		sec			sec								; player
-.1f5c	e9 27		sbc #$27		sbc #$27						; 39 memory locations = above
-.1f5e	85 62		sta $62			sta PLAYER_SCRN+2				; save it
-.1f60	b0 02		bcs $1f64		bcs player_move_down_sprite
-.1f62	c6 63		dec $63			dec PLAYER_SCRN+3				; if wrap around, dec high byte
-.1f64					player_move_down_sprite:
-.1f64	ee 01 d0	inc $d001		inc SPRITE_0_Y_POSITION
-.1f67	60		rts			rts
-.1f68					select_player_r_anim:
-.1f68	a2 00		ldx #$00		ldx #$00
-.1f6a	bd 10 48	lda $4810,x	-	lda pacman_r_fr2, x
-.1f6d	9d 40 0e	sta $0e40,x		sta SPRITE_1_DATA,x
-.1f70	e8		inx			inx
-.1f71	e0 3f		cpx #$3f		cpx #$3F
-.1f73	d0 f5		bne $1f6a		bne -
-.1f75	a2 00		ldx #$00		ldx #$00
-.1f77	bd 50 48	lda $4850,x	-	lda pacman_r_fr3, x
-.1f7a	9d 80 0e	sta $0e80,x		sta SPRITE_2_DATA,x
-.1f7d	e8		inx			inx
-.1f7e	e0 3f		cpx #$3f		cpx #$3F
-.1f80	d0 f5		bne $1f77		bne -
-.1f82	60		rts			rts
-.1f83					select_player_l_anim:
-.1f83	a2 00		ldx #$00		ldx #$00
-.1f85	bd 90 48	lda $4890,x	-	lda pacman_l_fr1, x
-.1f88	9d 40 0e	sta $0e40,x		sta SPRITE_1_DATA,x
-.1f8b	e8		inx			inx
-.1f8c	e0 3f		cpx #$3f		cpx #$3F
-.1f8e	d0 f5		bne $1f85		bne -
-.1f90	a2 00		ldx #$00		ldx #$00
-.1f92	bd d0 48	lda $48d0,x	-	lda pacman_l_fr2, x
-.1f95	9d 80 0e	sta $0e80,x		sta SPRITE_2_DATA,x
-.1f98	e8		inx			inx
-.1f99	e0 3f		cpx #$3f		cpx #$3F
-.1f9b	d0 f5		bne $1f92		bne -
-.1f9d	60		rts			rts
+.1d0d					chars_init:
+.1d0d	78		sei			sei					; best to disable interrupts
+.1d0e	a9 1c		lda #$1c		lda #$1c
+.1d10	8d 18 d0	sta $d018		sta VIC_SCREEN_BASE_REG
+.1d13	a9 ff		lda #$ff		lda #$ff
+.1d15	85 d8		sta $d8			sta $d8
+.1d17	a9 01		lda #$01		lda #$01
+.1d19	8d fd 12	sta $12fd		sta BASIC_IRQ_FLAG
+.1d1c	a9 30		lda #$30		lda #>$3000     		; move chars to $3000
+.1d1e	85 63		sta $63			sta CHARS_DEST+1
+.1d20	a9 38		lda #$38		lda #>char_data     	; from $d800 for rom (or start of cust char set) (lower-case)
+.1d22	85 61		sta $61			sta CHARS_SRC+1
+.1d24	a0 00		ldy #$00		ldy #<char_data
+.1d26	84 60		sty $60			sty CHARS_SRC
+.1d28	a0 00		ldy #$00		ldy #$00
+.1d2a	84 62		sty $62			sty CHARS_DEST
+.1d2c	a2 10		ldx #$10		ldx #$10        	; copy 2k of data.
+.1d2e	b1 60		lda ($60),y	- 	lda (CHARS_SRC),y	; copy byte.
+.1d30	91 62		sta ($62),y		sta (CHARS_DEST),y
+.1d32	c8		iny			iny
+.1d33	d0 f9		bne $1d2e		bne -           	; continue until .Y = 0.
+.1d35	e6 61		inc $61			inc CHARS_SRC+1     ; increase source & dest by 256
+.1d37	e6 63		inc $63			inc CHARS_DEST+1
+.1d39	ca		dex			dex             	; decrease .X count.
+.1d3a	d0 f2		bne $1d2e		bne -           	; if non-zero then continue copying, else
+.1d3c	a5 01		lda $01			lda $01				; turn bit 2 of $01 on
+.1d3e	09 04		ora #$04		ora #$04			; which tells system to use
+.1d40	85 01		sta $01			sta $01         	; VIC ram-based character set instead of rom
+.1d42	58		cli			cli
+.1d43	60		rts			rts             	; and return.
+.1d44					irq_handler:
+.1d44	ce 46 1c	dec $1c46		dec delay_pp
+.1d47	ce 47 1c	dec $1c47		dec delay_plyr_anim
+.1d4a	ce 48 1c	dec $1c48		dec delay_plyr_move
+.1d4d					irq_pp_anim_check:
+.1d4d	ad 46 1c	lda $1c46		lda delay_pp
+.1d50	c9 f0		cmp #$f0		cmp #$f0
+.1d52	10 43		bpl $1d97		bpl irq_plyr_anim_check
+.1d54	a9 ff		lda #$ff		lda #$ff
+.1d56	8d 46 1c	sta $1c46		sta delay_pp
+.1d59					irq_pp_anim:
+.1d59	ad 51 d8	lda $d851		lda COLOR_RAM + PP1_OFFSET
+.1d5c	c9 08		cmp #$08		cmp #BROWN
+.1d5e	f0 05		beq $1d65		beq +
+.1d60	a9 08		lda #$08		lda #BROWN
+.1d62	4c 67 1d	jmp $1d67		jmp irq_pp_flash
+.1d65	a9 07		lda #$07	+	lda #YELLOW
+.1d67					irq_pp_flash:
+.1d67	8d 51 d8	sta $d851		sta COLOR_RAM + PP1_OFFSET
+.1d6a	8d 52 d8	sta $d852		sta COLOR_RAM + PP1_OFFSET + 1
+.1d6d	8d 79 d8	sta $d879		sta COLOR_RAM + PP1_OFFSET + 40
+.1d70	8d 7a d8	sta $d87a		sta COLOR_RAM + PP1_OFFSET + 41
+.1d73	8d 75 d8	sta $d875		sta COLOR_RAM + $75
+.1d76	8d 76 d8	sta $d876		sta COLOR_RAM + $75 + 1
+.1d79	8d 9d d8	sta $d89d		sta COLOR_RAM + $75 + 40
+.1d7c	8d 9e d8	sta $d89e		sta COLOR_RAM + $75 + 41
+.1d7f	8d a9 da	sta $daa9		sta COLOR_RAM + $2a9
+.1d82	8d aa da	sta $daaa		sta COLOR_RAM + $2a9 + 1
+.1d85	8d d1 da	sta $dad1		sta COLOR_RAM + $2a9 + 40
+.1d88	8d d2 da	sta $dad2		sta COLOR_RAM + $2a9 + 41
+.1d8b	8d cd da	sta $dacd		sta COLOR_RAM + $2cd
+.1d8e	8d ce da	sta $dace		sta COLOR_RAM + $2cd + 1
+.1d91	8d f5 da	sta $daf5		sta COLOR_RAM + $2cd + 40
+.1d94	8d f6 da	sta $daf6		sta COLOR_RAM + $2cd + 41
+.1d97					irq_plyr_anim_check:
+.1d97	ad 47 1c	lda $1c47		lda delay_plyr_anim
+.1d9a	c9 f5		cmp #$f5		cmp #$f5
+.1d9c	10 1a		bpl $1db8		bpl irq_player_move_check
+.1d9e	a9 ff		lda #$ff		lda #$ff
+.1da0	8d 47 1c	sta $1c47		sta delay_plyr_anim
+.1da3					irq_player_anim:
+.1da3	ce 49 1c	dec $1c49		dec sprite_0_fr_count
+.1da6	d0 0d		bne $1db5		bne +
+.1da8	a9 38		lda #$38		lda #56						; reset to first anim frame
+.1daa	8d f8 07	sta $07f8		sta SPRITE_0_POINTER
+.1dad	a2 03		ldx #$03		ldx #SPRITE_0_FRAME_COUNT
+.1daf	8e 49 1c	stx $1c49		stx sprite_0_fr_count
+.1db2	4c e9 1d	jmp $1de9		jmp irq_end
+.1db5	ee f8 07	inc $07f8	+	inc SPRITE_0_POINTER
+.1db8					irq_player_move_check:
+.1db8	ad 4e 1c	lda $1c4e		lda player_direction
+.1dbb	c9 01		cmp #$01		cmp #DIR_UP
+.1dbd	d0 06		bne $1dc5		bne +
+.1dbf	20 9e 1e	jsr $1e9e		jsr player_move_up
+.1dc2	4c e9 1d	jmp $1de9		jmp irq_end
+.1dc5	ad 4e 1c	lda $1c4e	+	lda player_direction
+.1dc8	c9 02		cmp #$02		cmp #DIR_DOWN
+.1dca	d0 06		bne $1dd2		bne +
+.1dcc	20 c2 1e	jsr $1ec2		jsr player_move_down
+.1dcf	4c e9 1d	jmp $1de9		jmp irq_end
+.1dd2	ad 4e 1c	lda $1c4e	+	lda player_direction
+.1dd5	c9 03		cmp #$03		cmp #DIR_RIGHT
+.1dd7	d0 06		bne $1ddf		bne +
+.1dd9	20 2c 1e	jsr $1e2c		jsr player_move_right
+.1ddc	4c e9 1d	jmp $1de9		jmp irq_end
+.1ddf	ad 4e 1c	lda $1c4e	+	lda player_direction
+.1de2	c9 04		cmp #$04		cmp #DIR_LEFT
+.1de4	d0 03		bne $1de9		bne irq_end
+.1de6	20 65 1e	jsr $1e65		jsr player_move_left
+.1de9					irq_end
+.1de9	4c 65 fa	jmp $fa65		jmp $fa65
+.1dec					joystick_handler:
+.1dec	ad 51 1c	lda $1c51		lda joy_cache
+.1def	29 08		and #$08		and #$08
+.1df1	d0 0b		bne $1dfe		bne +
+.1df3	a9 03		lda #$03		lda #DIR_RIGHT
+.1df5	8d 4e 1c	sta $1c4e		sta player_direction
+.1df8	20 e6 1e	jsr $1ee6		jsr select_player_r_anim
+.1dfb	4c 2b 1e	jmp $1e2b		jmp joystick_end
+.1dfe	ad 51 1c	lda $1c51	+	lda joy_cache
+.1e01	29 04		and #$04		and #$04
+.1e03	d0 0b		bne $1e10		bne +
+.1e05	a9 04		lda #$04		lda #DIR_LEFT
+.1e07	8d 4e 1c	sta $1c4e		sta player_direction
+.1e0a	20 01 1f	jsr $1f01		jsr select_player_l_anim
+.1e0d	4c 2b 1e	jmp $1e2b		jmp joystick_end
+.1e10	ad 51 1c	lda $1c51	+	lda joy_cache
+.1e13	29 01		and #$01		and #$01
+.1e15	d0 08		bne $1e1f		bne +
+.1e17	a9 01		lda #$01		lda #DIR_UP
+.1e19	8d 4e 1c	sta $1c4e		sta player_direction
+.1e1c	4c 2b 1e	jmp $1e2b		jmp joystick_end
+.1e1f	ad 51 1c	lda $1c51	+	lda joy_cache
+.1e22	29 02		and #$02		and #$02
+.1e24	d0 05		bne $1e2b		bne joystick_end
+.1e26	a9 02		lda #$02		lda #DIR_DOWN
+.1e28	8d 4e 1c	sta $1c4e		sta player_direction
+.1e2b					joystick_end:
+.1e2b	60		rts			rts
+.1e2c					player_move_right:
+.1e2c	a9 00		lda #$00		lda #$00
+.1e2e	85 c0		sta $c0			sta sprite_num
+.1e30	20 1c 1f	jsr $1f1c		jsr sprite_to_screen_address
+.1e33	a0 00		ldy #$00		ldy #$00
+.1e35	b1 c4		lda ($c4),y		lda (screen_addr_lo),y
+.1e37	c9 20		cmp #$20		cmp #$20
+.1e39	f0 19		beq $1e54		beq player_move_right_yes
+.1e3b	c9 45		cmp #$45		cmp #$45
+.1e3d	f0 15		beq $1e54		beq player_move_right_yes
+.1e3f	c9 52		cmp #$52		cmp #$52
+.1e41	f0 11		beq $1e54		beq player_move_right_yes
+.1e43	c9 6c		cmp #$6c		cmp #$6C
+.1e45	f0 0d		beq $1e54		beq player_move_right_yes
+.1e47	c9 7c		cmp #$7c		cmp #$7c
+.1e49	f0 09		beq $1e54		beq player_move_right_yes
+.1e4b	c9 6f		cmp #$6f		cmp #$6f
+.1e4d	f0 05		beq $1e54		beq player_move_right_yes
+.1e4f	c9 77		cmp #$77		cmp #$77
+.1e51	f0 01		beq $1e54		beq player_move_right_yes
+.1e53	60		rts			rts								; nope - exit
+.1e54					player_move_right_yes:
+.1e54	18		clc			clc
+.1e55	ad 00 d0	lda $d000		lda SPRITE_0_X_POSITION
+.1e58	69 01		adc #$01		adc #$01
+.1e5a	90 05		bcc $1e61		bcc +
+.1e5c	a2 01		ldx #$01		ldx #$01
+.1e5e	8e 10 d0	stx $d010		stx SPRITE_XMSB
+.1e61	8d 00 d0	sta $d000	+	sta SPRITE_0_X_POSITION
+.1e64	60		rts			rts
+.1e65					player_move_left:
+.1e65	a9 00		lda #$00		lda #$00
+.1e67	85 c0		sta $c0			sta sprite_num
+.1e69	20 1c 1f	jsr $1f1c		jsr sprite_to_screen_address
+.1e6c	a0 00		ldy #$00		ldy #$00
+.1e6e	b1 c4		lda ($c4),y		lda (screen_addr_lo),y
+.1e70	c9 20		cmp #$20		cmp #$20
+.1e72	f0 19		beq $1e8d		beq player_move_left_yes
+.1e74	c9 45		cmp #$45		cmp #$45
+.1e76	f0 15		beq $1e8d		beq player_move_left_yes
+.1e78	c9 52		cmp #$52		cmp #$52
+.1e7a	f0 11		beq $1e8d		beq player_move_left_yes
+.1e7c	c9 6c		cmp #$6c		cmp #$6C
+.1e7e	f0 0d		beq $1e8d		beq player_move_left_yes
+.1e80	c9 7c		cmp #$7c		cmp #$7c
+.1e82	f0 09		beq $1e8d		beq player_move_left_yes
+.1e84	c9 6f		cmp #$6f		cmp #$6f
+.1e86	f0 05		beq $1e8d		beq player_move_left_yes
+.1e88	c9 77		cmp #$77		cmp #$77
+.1e8a	f0 01		beq $1e8d		beq player_move_left_yes
+.1e8c	60		rts			rts								; nope - exit
+.1e8d					player_move_left_yes:
+.1e8d	38		sec			sec
+.1e8e	ad 00 d0	lda $d000		lda SPRITE_0_X_POSITION
+.1e91	e9 01		sbc #$01		sbc #$01
+.1e93	b0 05		bcs $1e9a		bcs +
+.1e95	a2 00		ldx #$00		ldx #$00
+.1e97	8e 10 d0	stx $d010		stx SPRITE_XMSB
+.1e9a	8d 00 d0	sta $d000	+	sta SPRITE_0_X_POSITION
+.1e9d	60		rts			rts
+.1e9e					player_move_up:
+.1e9e	a9 00		lda #$00		lda #$00
+.1ea0	85 c0		sta $c0			sta sprite_num
+.1ea2	20 1c 1f	jsr $1f1c		jsr sprite_to_screen_address
+.1ea5	a0 00		ldy #$00		ldy #$00
+.1ea7	b1 c4		lda ($c4),y		lda (screen_addr_lo),y
+.1ea9	c9 20		cmp #$20		cmp #$20
+.1eab	f0 11		beq $1ebe		beq player_move_up_yes
+.1ead	c9 45		cmp #$45		cmp #$45
+.1eaf	f0 0d		beq $1ebe		beq player_move_up_yes
+.1eb1	c9 52		cmp #$52		cmp #$52
+.1eb3	f0 09		beq $1ebe		beq player_move_up_yes
+.1eb5	c9 6c		cmp #$6c		cmp #$6C
+.1eb7	f0 05		beq $1ebe		beq player_move_up_yes
+.1eb9	c9 7c		cmp #$7c		cmp #$7c
+.1ebb	f0 01		beq $1ebe		beq player_move_up_yes
+.1ebd	60		rts			rts								; nope - exit
+.1ebe					player_move_up_yes:
+.1ebe	ce 01 d0	dec $d001		dec SPRITE_0_Y_POSITION
+.1ec1	60		rts			rts
+.1ec2					player_move_down:
+.1ec2	a9 00		lda #$00		lda #$00
+.1ec4	85 c0		sta $c0			sta sprite_num
+.1ec6	20 1c 1f	jsr $1f1c		jsr sprite_to_screen_address
+.1ec9	a0 00		ldy #$00		ldy #$00
+.1ecb	b1 c4		lda ($c4),y		lda (screen_addr_lo),y
+.1ecd	c9 20		cmp #$20		cmp #$20
+.1ecf	f0 11		beq $1ee2		beq player_move_down_yes
+.1ed1	c9 45		cmp #$45		cmp #$45
+.1ed3	f0 0d		beq $1ee2		beq player_move_down_yes
+.1ed5	c9 52		cmp #$52		cmp #$52
+.1ed7	f0 09		beq $1ee2		beq player_move_down_yes
+.1ed9	c9 6c		cmp #$6c		cmp #$6C
+.1edb	f0 05		beq $1ee2		beq player_move_down_yes
+.1edd	c9 7c		cmp #$7c		cmp #$7c
+.1edf	f0 01		beq $1ee2		beq player_move_down_yes
+.1ee1	60		rts			rts								; nope - exit
+.1ee2					player_move_down_yes
+.1ee2	ee 01 d0	inc $d001		inc SPRITE_0_Y_POSITION
+.1ee5	60		rts			rts
+.1ee6					select_player_r_anim:
+.1ee6	a2 00		ldx #$00		ldx #$00
+.1ee8	bd 10 48	lda $4810,x	-	lda pacman_r_fr2, x
+.1eeb	9d 40 0e	sta $0e40,x		sta SPRITE_1_DATA,x
+.1eee	e8		inx			inx
+.1eef	e0 3f		cpx #$3f		cpx #$3F
+.1ef1	d0 f5		bne $1ee8		bne -
+.1ef3	a2 00		ldx #$00		ldx #$00
+.1ef5	bd 50 48	lda $4850,x	-	lda pacman_r_fr3, x
+.1ef8	9d 80 0e	sta $0e80,x		sta SPRITE_2_DATA,x
+.1efb	e8		inx			inx
+.1efc	e0 3f		cpx #$3f		cpx #$3F
+.1efe	d0 f5		bne $1ef5		bne -
+.1f00	60		rts			rts
+.1f01					select_player_l_anim:
+.1f01	a2 00		ldx #$00		ldx #$00
+.1f03	bd 90 48	lda $4890,x	-	lda pacman_l_fr1, x
+.1f06	9d 40 0e	sta $0e40,x		sta SPRITE_1_DATA,x
+.1f09	e8		inx			inx
+.1f0a	e0 3f		cpx #$3f		cpx #$3F
+.1f0c	d0 f5		bne $1f03		bne -
+.1f0e	a2 00		ldx #$00		ldx #$00
+.1f10	bd d0 48	lda $48d0,x	-	lda pacman_l_fr2, x
+.1f13	9d 80 0e	sta $0e80,x		sta SPRITE_2_DATA,x
+.1f16	e8		inx			inx
+.1f17	e0 3f		cpx #$3f		cpx #$3F
+.1f19	d0 f5		bne $1f10		bne -
+.1f1b	60		rts			rts
+.1f1c					sprite_to_screen_address:
+.1f1c	a5 c0		lda $c0			lda sprite_num        	; Load sprite number
+.1f1e	0a		asl a			asl                   	; Multiply sprite_num by 2 to get the correct index for X and Y
+.1f1f	aa		tax			tax                   	; Transfer the result to X
+.1f20	bd 00 d0	lda $d000,x		lda BASE_SPRITE_X, X  	; Load sprite X-coordinate
+.1f23	85 c1		sta $c1			sta sprite_x          	; Store sprite X-coordinate
+.1f25	bd 01 d0	lda $d001,x		lda BASE_SPRITE_Y, X  	; Load sprite Y-coordinate
+.1f28	18		clc			clc
+.1f29	69 02		adc #$02		adc #$02				; add 2 as a Y adjustment
+.1f2b	85 c2		sta $c2			sta sprite_y          	; Store sprite Y-coordinate
+.1f2d	ad 4e 1c	lda $1c4e		lda player_direction
+.1f30	c9 03		cmp #$03		cmp #DIR_RIGHT
+.1f32	f0 0e		beq $1f42		beq scr_addr_right
+.1f34	c9 04		cmp #$04		cmp #DIR_LEFT
+.1f36	f0 14		beq $1f4c		beq scr_addr_left
+.1f38	a5 c1		lda $c1			lda sprite_x			; 16bit subtraction
+.1f3a	38		sec			sec
+.1f3b	e9 18		sbc #$18		sbc #$18				; x-offset, visible screen area starts at x=$18
+.1f3d	85 c6		sta $c6			sta temp
+.1f3f	4c 56 1f	jmp $1f56		jmp scr_addr_xmsb
+.1f42					scr_addr_right:
+.1f42	a5 c1		lda $c1			lda sprite_x			; 16bit subtraction
+.1f44	38		sec			sec
+.1f45	e9 09		sbc #$09		sbc #$09
+.1f47	85 c6		sta $c6			sta temp
+.1f49	4c 56 1f	jmp $1f56		jmp scr_addr_xmsb
+.1f4c					scr_addr_left:
+.1f4c	a5 c1		lda $c1			lda sprite_x			; 16bit subtraction
+.1f4e	38		sec			sec
+.1f4f	e9 1a		sbc #$1a		sbc #$1a				; x-offset, visible screen area starts at x=$18
+.1f51	85 c6		sta $c6			sta temp
+.1f53	4c 56 1f	jmp $1f56		jmp scr_addr_xmsb
+.1f56					scr_addr_xmsb:
+.1f56	ad 10 d0	lda $d010		lda SPRITE_XMSB        	; Load sprite X-coordinate MSB
+.1f59	a6 c0		ldx $c0		    ldx sprite_num        	; Load sprite number into X
+.1f5b					shift_msb:
+.1f5b	4a		lsr a		    lsr                   	; Shift the bits in the SPRITE_XMSB register to the right
+.1f5c	ca		dex		    dex                   	; Decrement X
+.1f5d	d0 fc		bne $1f5b	    bne shift_msb         	; If X is not 0, continue shifting
+.1f5f	29 01		and #$01	    and #$01               	; Perform a bitwise AND with 1 to isolate the sprite MSB
+.1f61	85 c3		sta $c3		    sta sprite_msb2        	; Store sprite MSB
+.1f63	a5 c6		lda $c6			lda temp
+.1f65	6a		ror a			ror
+.1f66	4a		lsr a			lsr
+.1f67	4a		lsr a			lsr
+.1f68	85 c7		sta $c7			sta column
+.1f6a	a5 c3		lda $c3			lda sprite_msb2
+.1f6c	f0 07		beq $1f75		beq +
+.1f6e	a5 c7		lda $c7			lda column
+.1f70	18		clc			clc
+.1f71	69 20		adc #$20		adc #$20
+.1f73	85 c7		sta $c7			sta column
+.1f75	ad 4e 1c	lda $1c4e	+	lda player_direction
+.1f78	c9 01		cmp #$01		cmp #DIR_UP
+.1f7a	f0 11		beq $1f8d		beq scr_addr_up
+.1f7c	c9 02		cmp #$02		cmp #DIR_DOWN
+.1f7e	f0 1a		beq $1f9a		beq scr_addr_down
+.1f80	a5 c2		lda $c2			lda sprite_y
+.1f82	38		sec			sec
+.1f83	e9 32		sbc #$32		sbc #$32				; y-offset, visible screen area starts at y=$32
+.1f85	4a		lsr a			lsr						; value / 8
+.1f86	4a		lsr a			lsr
+.1f87	4a		lsr a			lsr
+.1f88	85 c8		sta $c8			sta row
+.1f8a	4c a4 1f	jmp $1fa4		jmp scr_addr_calc_addr
+.1f8d					scr_addr_up:
+.1f8d	a5 c2		lda $c2			lda sprite_y
+.1f8f	38		sec			sec
+.1f90	e9 33		sbc #$33		sbc #$33				; y-offset, visible screen area starts at y=$32
+.1f92	4a		lsr a			lsr						; value / 8
+.1f93	4a		lsr a			lsr
+.1f94	4a		lsr a			lsr
+.1f95	85 c8		sta $c8			sta row
+.1f97	4c a4 1f	jmp $1fa4		jmp scr_addr_calc_addr
+.1f9a					scr_addr_down:
+.1f9a	a5 c2		lda $c2			lda sprite_y
+.1f9c	38		sec			sec
+.1f9d	e9 26		sbc #$26		sbc #$26				; y-offset, visible screen area starts at y=$32
+.1f9f	4a		lsr a			lsr						; value / 8
+.1fa0	4a		lsr a			lsr
+.1fa1	4a		lsr a			lsr
+.1fa2	85 c8		sta $c8			sta row
+.1fa4					scr_addr_calc_addr
+.1fa4	a5 c8		lda $c8			lda row
+.1fa6	a0 28		ldy #$28		ldy #40   						; Number of columns per row
+.1fa8	20 cd 1f	jsr $1fcd		jsr multiply_8b_by_8b
+.1fab	a2 00		ldx #$00		ldx #$00
+.1fad	86 c5		stx $c5			stx screen_addr_hi
+.1faf	18		clc			clc        						; Clear carry flag
+.1fb0	65 c7		adc $c7			adc column    					; Add the column value
+.1fb2	85 c4		sta $c4			sta screen_addr_lo
+.1fb4	90 02		bcc $1fb8		bcc +
+.1fb6	e6 c5		inc $c5			inc screen_addr_hi
+.1fb8	a9 00		lda #$00	+	lda #<SCREEN_RAM 				; Low byte of screen memory address
+.1fba	65 c4		adc $c4			adc screen_addr_lo
+.1fbc	85 c4		sta $c4			sta screen_addr_lo
+.1fbe	a9 04		lda #$04		lda #>SCREEN_RAM 				; High byte of screen memory address
+.1fc0	65 c5		adc $c5			adc screen_addr_hi
+.1fc2	85 c5		sta $c5			sta screen_addr_hi
+.1fc4	ad f9 1f	lda $1ff9		lda result
+.1fc7	18		clc			clc
+.1fc8	65 c5		adc $c5			adc screen_addr_hi
+.1fca	85 c5		sta $c5			sta screen_addr_hi
+.1fcc	60		rts			rts
+.1fcd					multiply_8b_by_8b:
+=$70					num1Hi = $70
+.1fcd	8d f7 1f	sta $1ff7		sta num1
+.1fd0	8c f8 1f	sty $1ff8		sty num2
+.1fd3	a9 00		lda #$00		lda #$00
+.1fd5	a8		tay			tay
+.1fd6	84 70		sty $70			sty num1Hi  		; remove this line for 16*8=16bit multiply
+.1fd8	f0 0f		beq $1fe9		beq enterLoop
+.1fda					doAdd:
+.1fda	18		clc			clc
+.1fdb	6d f7 1f	adc $1ff7		adc num1
+.1fde	aa		tax			tax
+.1fdf	98		tya			tya
+.1fe0	65 70		adc $70			adc num1Hi
+.1fe2	a8		tay			tay
+.1fe3	8a		txa			txa
+.1fe4					loop:
+.1fe4	0e f7 1f	asl $1ff7		asl num1
+.1fe7	26 70		rol $70			rol num1Hi
+.1fe9					enterLoop:
+.1fe9	4e f8 1f	lsr $1ff8		lsr num2
+.1fec	b0 ec		bcs $1fda		bcs doAdd
+.1fee	d0 f4		bne $1fe4		bne loop
+.1ff0	8d fa 1f	sta $1ffa		sta result+1
+.1ff3	8c f9 1f	sty $1ff9		sty result
+.1ff6	60		rts		    RTS					; Return from subroutine
+.1ff7					num1:
+>1ff7	00					.byte $00			; 8 bit multiplication
+.1ff8					num2:
+>1ff8	00					.byte $00
+.1ff9					result:
+>1ff9	00 00					.byte $00, $00		; 16 bit result
 
 ;******  Processing file: ./src/screen_data.asm
 
@@ -846,8 +946,8 @@
 >4190	a0 d1 d1 d1 20 20 d1 d1			.byte	$A0, $D1, $D1, $D1, $20, $20, $D1, $D1, $EF, $20, $20, $D1, $D1, $D1, $D1, $F7, $20, $20, $f9, $F9, $F9, $f9, $20, $20, $F7, $D1, $D1, $D1, $D1, $20, $20, $EF, $D1, $D1, $20, $20, $D1, $D1, $D1, $A0
 >4198	ef 20 20 d1 d1 d1 d1 f7 20 20 f9 f9 f9 f9 20 20
 >41a8	f7 d1 d1 d1 d1 20 20 ef d1 d1 20 20 d1 d1 d1 a0
->41b8	a0 20 52 20 52 20 52 20			.byte	$A0, $20, $52, $20, $52, $20, $52, $20, $52, $20, $20, $52, $20, $52, $20, $A0, $20, $52, $20, $52, $52, $20, $52, $20, $A0, $20, $20, $52, $20, $52, $20, $52, $20, $52, $20, $52, $20, $52, $20, $A0
->41c0	52 20 20 52 20 52 20 a0 20 52 20 52 52 20 52 20
+>41b8	a0 20 52 20 52 20 52 20			.byte	$A0, $20, $52, $20, $52, $20, $52, $20, $52, $20, $52, $20, $52, $20, $20, $A0, $20, $52, $20, $52, $52, $20, $52, $20, $A0, $20, $20, $52, $20, $52, $20, $52, $20, $52, $20, $52, $20, $52, $20, $A0
+>41c0	52 20 52 20 52 20 20 a0 20 52 20 52 52 20 52 20
 >41d0	a0 20 20 52 20 52 20 52 20 52 20 52 20 52 20 a0
 >41e0	a0 20 20 6f 6f 6f 20 20			.byte	$A0, $20, $20, $6F, $6F, $6F, $20, $20, $6F, $20, $20, $6F, $6F, $20, $20, $A0, $20, $20, $6F, $6F, $6F, $6F, $20, $20, $A0, $20, $20, $6F, $6F, $20, $20, $6F, $20, $20, $6F, $6F, $6F, $20, $20, $A0
 >41e8	6f 20 20 6f 6f 20 20 a0 20 20 6f 6f 6f 6f 20 20
@@ -922,8 +1022,8 @@
 >4578	08 08 08 08 08 08 08 08			.byte	$08, $08, $08, $08, $08, $08, $08, $08, $08, $0E, $0E, $08, $08, $08, $08, $08, $0E, $0E, $08, $08, $08, $08, $0E, $0E, $08, $08, $08, $08, $08, $0E, $0E, $08, $08, $08, $0E, $0E, $08, $08, $08, $08
 >4580	08 0e 0e 08 08 08 08 08 0e 0e 08 08 08 08 0e 0e
 >4590	08 08 08 08 08 0e 0e 08 08 08 0e 0e 08 08 08 08
->45a0	08 0e 08 0e 08 0e 08 0e			.byte	$08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $08, $08, $08, $08, $08, $0E, $08, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08
->45a8	08 0e 0e 08 0e 08 0e 08 0e 08 08 08 08 08 08 0e
+>45a0	08 0e 08 0e 08 0e 08 0e			.byte	$08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $08, $08, $08, $0E, $08, $0E, $08, $08, $08, $08, $08, $08, $0E, $08, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08, $0E, $08
+>45a8	08 0e 08 08 08 08 0e 08 0e 08 08 08 08 08 08 0e
 >45b8	08 08 0e 08 0e 08 0e 08 0e 08 0e 08 0e 08 0e 08
 >45c8	08 0e 0e 08 08 08 0e 08			.byte	$08, $0E, $0E, $08, $08, $08, $0E, $08, $08, $0E, $0E, $08, $08, $08, $0E, $08, $0E, $08, $08, $08, $08, $08, $08, $08, $08, $08, $0E, $08, $08, $08, $0E, $08, $0E, $08, $08, $08, $08, $0E, $0E, $08
 >45d0	08 0e 0e 08 08 08 0e 08 0e 08 08 08 08 08 08 08
