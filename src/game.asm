@@ -6,6 +6,7 @@
 ; ===============================================================
 
 .include "vic.asm"
+.include "sid.asm"
 
 SCREEN_RAM				= $0400
 SPRITE_0_POINTER    	= $07F8 		; Last 8 Bytes of Screen RAM
@@ -47,9 +48,6 @@ DIR_LEFT	= $04
 CHARS_SRC	= $60
 CHARS_DEST 	= $62
 
-SPRITE_UPDOWN_STEP = $08
-SPRITE_LEFTRIGHT_STEP = $08
-
 SPRITE_0_FRAME_COUNT	= $03
 
 ; temp ZP Variables
@@ -63,7 +61,9 @@ temp          	= $C6
 column			= $c7
 row				= $c8
 
-
+; ====================================================================
+; BASIC LOADER
+; ====================================================================
 ; 10 SYS 7182
 *=$1c01
 	.byte $1c, $1c, $0A, $00, $9E, $20, $37, $31, $38, $32
@@ -90,15 +90,14 @@ main_loop:
 	; check joystick
 	lda IO_PORT_DATA_REG_A
 	cmp joy_cache
-	bne +
-	jmp main_collision_check
-+	sta joy_cache
+	beq main_collision_check
+	sta joy_cache
 	jsr joystick_handler
 
 main_collision_check:
 	lda collision_flg
-	and #$80
-	cmp #$80
+	and #$01
+	cmp #$01
     beq collide
 	;inc VIC_BACKGROUND_COLOR
 
@@ -107,6 +106,7 @@ main_loop_end:
 
 collide:
 	;inc VIC_BORDER_COLOR
+	;jsr play_chomp_sound
 	jmp main_loop
 	
 ; ====================================================================
@@ -120,7 +120,6 @@ delay_plyr_anim:
 	.byte $ff
 delay_plyr_move:
 	.byte $ff
-
 sprite_0_fr_count:
 	.byte SPRITE_0_FRAME_COUNT
 collision_flg:
@@ -131,11 +130,19 @@ player_y:
 	.byte $b0
 player_direction:
 	.byte DIR_STOPPED
-sprite_move_lr_bytes:
-	.byte SPRITE_LEFTRIGHT_STEP
-sprite_move_ud_bytes:
-	.byte SPRITE_UPDOWN_STEP
+player_prev_direction:
+	.byte DIR_RIGHT
+ghost1_direction:
+	.byte $00
+ghost2_direction:
+	.byte $00
+ghost3_direction:
+	.byte $00
+ghost4_direction:
+	.byte $00
 joy_cache:
+	.byte $00
+prev_joy_cache:
 	.byte $00
 
 ; ====================================================================
@@ -276,20 +283,6 @@ sprite_init:
 	sta SPRITE_0_Y_POSITION
 	
 	rts
-
-movement_r0:
-	.byte $23, 2, DIR_RIGHT, DIR_DOWN
-
-pacman_dir:
-	.byte $00	; 0-stopped, 1-up, 2-down, 3-right, 4-left
-ghost1_dir:
-	.byte $00
-ghost2_dir:
-	.byte $00
-ghost3_dir:
-	.byte $00
-ghost4_dir:
-	.byte $00
 
 ; ====================================================================
 ; initialise the custom characters
@@ -442,7 +435,13 @@ irq_end
 
 ; ====================================================================
 joystick_handler:
+;
+; This routine is called when a direction is changed by the player
+; it will set the player_direction to the new direction value which
+; is used in the irq routine for movement and if left or right, will 
+; switch to the appropriate face / animation
 ; ====================================================================
+
 	lda joy_cache
 	and #$08
 	bne +
@@ -481,9 +480,15 @@ joystick_handler:
 	sta player_direction
 
 joystick_end:
-	;lda #$00
-	;sta joy_cache
 	rts
+
+; ====================================================================
+; Sprite movement routines
+; These routines are sprite agnostic.  Setting 'sprite_num' to the
+; appropriate sprite #, we can move any of the characters including
+; the player.  The routines check the bounds around the sprite's
+; character screen matrix location for walls
+; ====================================================================
 
 ; ====================================================================
 player_move_right:
@@ -494,7 +499,17 @@ player_move_right:
 	sta sprite_num
 	jsr sprite_to_screen_address
 
+	; we are looking two spaces to the right, so add 2 to the address
+	lda screen_addr_lo
+	clc
+	adc #$02
+	sta screen_addr_lo
+	bcc +
+	inc screen_addr_hi
+
++	ldx #$00
 	ldy #$00
+pmr_l0:
 	lda (screen_addr_lo),y
 	cmp #$20
 	beq player_move_right_yes
@@ -510,9 +525,18 @@ player_move_right:
 	beq player_move_right_yes
 	cmp #$77
 	beq player_move_right_yes
+	cmp #$D1
+	beq player_move_right_yes
+	rts
+player_move_right_yes:
+	inx
+	cpx #$02
+	beq player_move_right_yes2
+	ldy #$28
+	jmp pmr_l0
 	rts								; nope - exit
 
-player_move_right_yes:
+player_move_right_yes2:
 
 	; move the sprite
 	clc 
@@ -533,7 +557,17 @@ player_move_left:
 	sta sprite_num
 	jsr sprite_to_screen_address
 
+	; we are looking one spaces to the left, so subtract 1 to the address
+	lda screen_addr_lo
+	sec
+	sbc #$01
+	sta screen_addr_lo
+	bcs +
+	dec screen_addr_hi
+
++	ldx #$00
 	ldy #$00
+pml_l0:
 	lda (screen_addr_lo),y
 	cmp #$20
 	beq player_move_left_yes
@@ -549,10 +583,18 @@ player_move_left:
 	beq player_move_left_yes
 	cmp #$77
 	beq player_move_left_yes
+	cmp #$D1
+	beq player_move_left_yes
 	rts								; nope - exit
-
-	; we can move. update the screen matrix address if we have moved to another cell
 player_move_left_yes:
+	inx
+	cpx #$02
+	beq player_move_left_yes2
+	ldy #$28
+	jmp pml_l0
+	rts	
+
+player_move_left_yes2:
 
 	; move the sprite
 	sec 
@@ -572,7 +614,9 @@ player_move_up:
 	sta sprite_num
 	jsr sprite_to_screen_address
 
+	ldx #$00
 	ldy #$00
+pmu_l0:
 	lda (screen_addr_lo),y	
 	cmp #$20
 	beq player_move_up_yes
@@ -585,8 +629,15 @@ player_move_up:
 	cmp #$7c
 	beq player_move_up_yes
 	rts								; nope - exit
-
 player_move_up_yes:
+	inx
+	cpx #$02
+	beq player_move_up_yes2
+	ldy #$01
+	jmp pmu_l0
+	rts	
+
+player_move_up_yes2:
 	; move the sprite
 	dec SPRITE_0_Y_POSITION
 	rts
@@ -599,7 +650,9 @@ player_move_down:
 	sta sprite_num
 	jsr sprite_to_screen_address
 
+	ldx #$00
 	ldy #$00
+pmd_l0:
 	lda (screen_addr_lo),y
 	cmp #$20
 	beq player_move_down_yes
@@ -612,8 +665,15 @@ player_move_down:
 	cmp #$7c
 	beq player_move_down_yes
 	rts								; nope - exit
+player_move_down_yes:
+	inx
+	cpx #$02
+	beq player_move_down_yes2
+	ldy #$01
+	jmp pmd_l0
+	rts	
 
-player_move_down_yes
+player_move_down_yes2
 	; move the sprite
 	inc SPRITE_0_Y_POSITION
 	rts
@@ -668,39 +728,19 @@ sprite_to_screen_address:
 	tax                   	; Transfer the result to X
 
 	lda BASE_SPRITE_X, X  	; Load sprite X-coordinate
+	clc
+	adc #$06	;  <=============================================adjusting spritex and y based on face direction.  ugh
 	sta sprite_x          	; Store sprite X-coordinate
 	lda BASE_SPRITE_Y, X  	; Load sprite Y-coordinate
 	clc
-	adc #$02				; add 2 as a Y adjustment
+	adc #$02				; add 2 as a Y adjustment (because sprite bit starts 2 down)
 	sta sprite_y          	; Store sprite Y-coordinate
-
-	lda player_direction
-	cmp #DIR_RIGHT
-	beq scr_addr_right
-	cmp #DIR_LEFT
-	beq scr_addr_left
 
 	lda sprite_x			; 16bit subtraction
 	sec            
 	sbc #$18				; x-offset, visible screen area starts at x=$18
 	sta temp
-	jmp scr_addr_xmsb
 
-scr_addr_right:
-	lda sprite_x			; 16bit subtraction
-	sec            
-	sbc #$09
-	sta temp
-	jmp scr_addr_xmsb
-
-scr_addr_left:
-	lda sprite_x			; 16bit subtraction
-	sec            
-	sbc #$1a				; x-offset, visible screen area starts at x=$18
-	sta temp
-	jmp scr_addr_xmsb
-
-scr_addr_xmsb:
 	lda SPRITE_XMSB        	; Load sprite X-coordinate MSB
     ldx sprite_num        	; Load sprite number into X
 shift_msb:
@@ -724,43 +764,15 @@ shift_msb:
 	sta column
 
 	; calculate the screen row
-
-+	lda player_direction
-	cmp #DIR_UP
-	beq scr_addr_up
-	cmp #DIR_DOWN
-	beq scr_addr_down
-
-	lda sprite_y
++	lda sprite_y
 	sec
 	sbc #$32				; y-offset, visible screen area starts at y=$32
 	lsr						; value / 8
 	lsr
 	lsr
 	sta row
-	jmp scr_addr_calc_addr
-
-scr_addr_up:
-	lda sprite_y
-	sec
-	sbc #$33				; y-offset, visible screen area starts at y=$32
-	lsr						; value / 8
-	lsr
-	lsr
-	sta row
-	jmp scr_addr_calc_addr
-
-scr_addr_down:
-	lda sprite_y
-	sec
-	sbc #$26				; y-offset, visible screen area starts at y=$32
-	lsr						; value / 8
-	lsr
-	lsr
-	sta row
 
 	; calculate screen matrix address
-
 scr_addr_calc_addr
 	lda row
 	ldy #40   						; Number of columns per row
@@ -838,6 +850,55 @@ num2:
 	.byte $00
 result:
 	.byte $00, $00		; 16 bit result
+
+; ====================================================================
+play_chomp_sound:
+; ====================================================================
+	lda playing_chomp
+	beq play_chomp_sound_yes
+	rts
+
+play_chomp_sound_yes:
+	lda #$01
+	sta playing_chomp
+	
+	jsr sidclr
+	lda #15			; set volume
+	sta SID_VOL
+	lda #$00		; set attack / decay
+	sta SID_ATDCY1
+	lda #$10		; set sustain / release
+	sta SID_SUREL1
+	lda #132		; voice 1 freq (lo)
+	sta SID_FRELO1
+	lda #10			; voice 1 freq (hi)
+	sta SID_FREHI1
+	lda #%00010001	; triangle waveform and gate sound
+	sta SID_VCREG1
+	;lda #2			; cause a delay of two jiffies
+	;adc JIFFLO		; add current jiffy reading
+delay:
+	;cmp JIFFLO		; and wait for two jiffies to elapse
+	;bne delay
+	lda #%00010000	; ungate sound
+	sta SID_VCREG1
+
+	lda #$00
+	sta playing_chomp
+
+	rts
+
+sidclr:
+	lda #$00			; fill with zero
+	ldy #24
+sidlop:
+	sta SID_FRELO1,y 	; store zero in sid chip address
+	dey					; for next lower byte
+	bpl sidlop			; fill 25 bytes
+	rts
+
+playing_chomp:
+	.byte $00
 
 *= $3800
 .include "screen_data.asm"
