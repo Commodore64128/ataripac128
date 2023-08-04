@@ -89,8 +89,8 @@ main_loop:
 
 	; check joystick
 	lda IO_PORT_DATA_REG_A
-	cmp joy_cache
-	beq main_collision_check
+	;cmp joy_cache
+	;beq main_collision_check
 	sta joy_cache
 	jsr joystick_handler
 
@@ -442,6 +442,10 @@ joystick_handler:
 ; switch to the appropriate face / animation
 ; ====================================================================
 
+	; we can only change directions if the player is at a pixel boundary
+	lda pm_count
+	bne joystick_end
+
 	lda joy_cache
 	and #$08
 	bne +
@@ -490,54 +494,49 @@ joystick_end:
 ; character screen matrix location for walls
 ; ====================================================================
 
+pm_count:
+	.byte $00	; tracks how many bytes the player has moved
+
 ; ====================================================================
 player_move_right:
 ; ====================================================================
 
-	; check sprite collision
+	; if we are already moving, keep doing so
+	lda pm_count
+	bne pmr_move
+
+	; calculate the sprite screen address
 	lda #$00
 	sta sprite_num
 	jsr sprite_to_screen_address
 
-	; we are looking two spaces to the right, so add 2 to the address
-	lda screen_addr_lo
-	clc
-	adc #$02
-	sta screen_addr_lo
-	bcc +
-	inc screen_addr_hi
+	; we are looking one space to the right
+	; so add 1 to the location
+    lda screen_addr_lo 
+    clc 
+    adc #$01
+    sta screen_addr_lo
+    lda screen_addr_hi
+    adc #$00
+    sta screen_addr_hi
 
-+	ldx #$00
+	; barrier check	
+	ldx #$02						; loop twice to check both above and below 8bit quad
 	ldy #$00
 pmr_l0:
-	lda (screen_addr_lo),y
-	cmp #$20
-	beq player_move_right_yes
-	cmp #$45
-	beq player_move_right_yes
-	cmp #$52
-	beq player_move_right_yes
-	cmp #$6C
-	beq player_move_right_yes
-	cmp #$7c
-	beq player_move_right_yes
-	cmp #$6f
-	beq player_move_right_yes
-	cmp #$77
-	beq player_move_right_yes
-	cmp #$D1
-	beq player_move_right_yes
-	rts
-player_move_right_yes:
-	inx
-	cpx #$02
-	beq player_move_right_yes2
+	jsr barrier_check
+	beq +
+	jmp pmr_done					; nope - exit
++	dex
+	beq pmr_ok2move
 	ldy #$28
 	jmp pmr_l0
-	rts								; nope - exit
 
-player_move_right_yes2:
+pmr_ok2move:
+	lda #$08
+	sta pm_count
 
+pmr_move:
 	; move the sprite
 	clc 
 	lda SPRITE_0_X_POSITION
@@ -546,56 +545,53 @@ player_move_right_yes2:
 	ldx #$01
 	stx SPRITE_XMSB
 +	sta SPRITE_0_X_POSITION
+	dec pm_count
+
+pmr_done:
 	rts
+
+
 
 ; ====================================================================
 player_move_left:
 ; ====================================================================
 
-	; check sprite collision
+	; if we are already moving, keep doing so
+	lda pm_count
+	bne pml_move
+
+	; calculate the sprite screen address
 	lda #$00
 	sta sprite_num
 	jsr sprite_to_screen_address
 
-	; we are looking one spaces to the left, so subtract 1 to the address
+	; we are looking one spaces to the left
+	; so subtract 1 to the address
 	lda screen_addr_lo
 	sec
 	sbc #$01
 	sta screen_addr_lo
-	bcs +
-	dec screen_addr_hi
+	lda screen_addr_hi
+    sbc #$00
+    sta screen_addr_hi
 
-+	ldx #$00
+	; barrier check	
+	ldx #$02						; loop twice to check both above and below 8bit quad
 	ldy #$00
 pml_l0:
-	lda (screen_addr_lo),y
-	cmp #$20
-	beq player_move_left_yes
-	cmp #$45
-	beq player_move_left_yes
-	cmp #$52
-	beq player_move_left_yes
-	cmp #$6C
-	beq player_move_left_yes
-	cmp #$7c
-	beq player_move_left_yes
-	cmp #$6f
-	beq player_move_left_yes
-	cmp #$77
-	beq player_move_left_yes
-	cmp #$D1
-	beq player_move_left_yes
-	rts								; nope - exit
-player_move_left_yes:
-	inx
-	cpx #$02
-	beq player_move_left_yes2
+	jsr barrier_check
+	beq +
+	jmp pml_done					; nope - exit
++	dex
+	beq pml_ok2move
 	ldy #$28
 	jmp pml_l0
-	rts	
 
-player_move_left_yes2:
+pml_ok2move:
+	lda #$08
+	sta pm_count
 
+pml_move:
 	; move the sprite
 	sec 
 	lda SPRITE_0_X_POSITION
@@ -604,80 +600,149 @@ player_move_left_yes2:
 	ldx #$00
 	stx SPRITE_XMSB
 +	sta SPRITE_0_X_POSITION
+	dec pm_count
+
+pml_done:
 	rts
 
 ; ====================================================================
 player_move_up:
 ; ====================================================================
-	; check sprite collision
+
+	; if we are already moving, keep doing so
+	lda pm_count
+	bne pmu_move
+
+	; calculate the sprite screen address
 	lda #$00
 	sta sprite_num
 	jsr sprite_to_screen_address
 
-	ldx #$00
+	; we are looking one space up, one to the left
+	; so subtract 41 from the address
+	lda screen_addr_lo
+	sec
+	sbc #$29
+	sta screen_addr_lo
+	lda screen_addr_hi
+	sbc #$00
+	sta screen_addr_hi
+
+	; barrier check	
+	ldx #$02						; loop twice to check both above and below 8bit quad
 	ldy #$00
 pmu_l0:
-	lda (screen_addr_lo),y	
-	cmp #$20
-	beq player_move_up_yes
-	cmp #$45
-	beq player_move_up_yes
-	cmp #$52
-	beq player_move_up_yes
-	cmp #$6C
-	beq player_move_up_yes
-	cmp #$7c
-	beq player_move_up_yes
-	rts								; nope - exit
-player_move_up_yes:
-	inx
-	cpx #$02
-	beq player_move_up_yes2
+	jsr barrier_check
+	beq +
+	jmp pmu_done					; nope - exit
++	dex
+	beq pmu_ok2move
 	ldy #$01
 	jmp pmu_l0
 	rts	
 
-player_move_up_yes2:
+pmu_ok2move:
+	lda #$0a
+	sta pm_count
+
+pmu_move:
 	; move the sprite
 	dec SPRITE_0_Y_POSITION
+	dec pm_count
+
+pmu_done:
 	rts
 
 ; ====================================================================
 player_move_down:
 ; ====================================================================
-	; check sprite collision
+
+	; if we are already moving, keep doing so
+	lda pm_count
+	bne pmd_move
+
+	; calculate the sprite screen address
 	lda #$00
 	sta sprite_num
 	jsr sprite_to_screen_address
 
-	ldx #$00
+	; we are looking one space down, one to the left
+	; so add 39 to the address
+	lda screen_addr_lo
+	clc
+	adc #$4f ;27
+	sta screen_addr_lo
+	lda screen_addr_hi
+	adc #$00
+	sta screen_addr_hi
+
+	; barrier check	
+	ldx #$02						; loop twice to check both above and below 8bit quad
 	ldy #$00
 pmd_l0:
-	lda (screen_addr_lo),y
-	cmp #$20
-	beq player_move_down_yes
-	cmp #$45
-	beq player_move_down_yes
-	cmp #$52
-	beq player_move_down_yes
-	cmp #$6C
-	beq player_move_down_yes
-	cmp #$7c
-	beq player_move_down_yes
-	rts								; nope - exit
-player_move_down_yes:
-	inx
-	cpx #$02
-	beq player_move_down_yes2
+	jsr barrier_check
+	beq +
+	jmp pmd_done					; nope - exit
++	dex
+	beq pmd_ok2move
 	ldy #$01
 	jmp pmd_l0
 	rts	
 
-player_move_down_yes2
+pmd_ok2move:
+	lda #$0a
+	sta pm_count
+
+pmd_move:
 	; move the sprite
 	inc SPRITE_0_Y_POSITION
+	dec pm_count
+
+pmd_done:
 	rts
 
+; ====================================================================
+barrier_check:
+; ====================================================================
+
+	; look at address.  if A=0 if we can move there
+	lda (screen_addr_lo),y
+	cmp #$20
+	beq barrier_check_ok
+	cmp #$45
+	beq barrier_check_ok
+	cmp #$52
+	beq barrier_check_ok
+
+	cmp #$6C
+	beq barrier_check_ok
+	cmp #$7B
+	beq barrier_check_ok
+	cmp #$7c
+	beq barrier_check_ok
+	cmp #$7e
+	beq barrier_check_ok
+
+	cmp #$6f
+	beq barrier_check_ok
+
+	cmp #$77
+	bne barrier_check_not_ok
+	lda player_direction
+	cmp #DIR_RIGHT
+	bcs barrier_check_ok
+	jmp barrier_check_not_ok
+	
+	;cmp #$D1
+	;beq barrier_check_ok
+
+barrier_check_not_ok:
+	rts
+
+
+barrier_check_ok:
+	lda #$00
+	rts
 
 ; ====================================================================
 select_player_r_anim:
@@ -721,6 +786,30 @@ select_player_l_anim:
 sprite_to_screen_address:
 ; ====================================================================
 
+	; the sprite is a 16bit x 16bit character, taking 4 screen addresses.
+	; Determining the screen address it is over is more complicated than 
+	; if it were just a simple 8x8 character. 
+	;
+	; The direction it is going, determines which address is returned.  
+	;
+	; For up, we want the very top left of the sprite which is offset by +1
+	; For down, we want +14
+	; For right, +14
+	; For left, +1
+
+spr2scr_calc_x_offset:
+
+	lda player_direction
+	cmp #DIR_LEFT
+	bne +
+	lda #$07
+	sta spr2scr_offset_x+1
+	jmp spr2scr_begin_calc
+
++	lda #$08
+	sta spr2scr_offset_x+1
+
+spr2scr_begin_calc:
 	; calculate screen column
 
 	lda sprite_num        	; Load sprite number
@@ -729,32 +818,54 @@ sprite_to_screen_address:
 
 	lda BASE_SPRITE_X, X  	; Load sprite X-coordinate
 	clc
-	adc #$06	;  <=============================================adjusting spritex and y based on face direction.  ugh
+
+spr2scr_offset_x:
+	adc #$08				; 
 	sta sprite_x          	; Store sprite X-coordinate
 	lda BASE_SPRITE_Y, X  	; Load sprite Y-coordinate
 	clc
 	adc #$02				; add 2 as a Y adjustment (because sprite bit starts 2 down)
 	sta sprite_y          	; Store sprite Y-coordinate
 
-	lda sprite_x			; 16bit subtraction
-	sec            
-	sbc #$18				; x-offset, visible screen area starts at x=$18
-	sta temp
+
+	; extract the selected sprite's X MSB
+	; equivalent to  "sprite_msb2 = getSpriteXMSB(int sprite_num);"
 
 	lda SPRITE_XMSB        	; Load sprite X-coordinate MSB
     ldx sprite_num        	; Load sprite number into X
-shift_msb:
+	cpx #$00
+	beq spr2scr_done_shift_msb
+spr2scr_shift_msb:
     lsr                   	; Shift the bits in the SPRITE_XMSB register to the right
-    dex                   	; Decrement X
-    bne shift_msb         	; If X is not 0, continue shifting
+	dex                   	; Decrement X
+    bne spr2scr_shift_msb  	; If X is not 0, continue shifting
+spr2scr_done_shift_msb:
     and #$01               	; Perform a bitwise AND with 1 to isolate the sprite MSB
     sta sprite_msb2        	; Store sprite MSB
 
-	lda temp
-	ror
+	; equivalent to  "A = sprite_x - 24;" 
+	; x-offset, visible screen area starts at x=$18(24)
+	; but, we have to account for the X msb
+
+	beq +					; jump ahead if the msb is zero
+	lda sprite_x			; get the sprite x value
+	cmp #$18
+	bcs +					; jump ahead if it is >= 24
+	lda #$00				; put 0 in the msb since the subtraction
+	sta sprite_msb2			; ..that will happen ahead would cause it to become 0
+
++	lda sprite_x
+	sec         
+	sbc #$18
+
+	; equivalent to  "column = A / 8;"
+	lsr
 	lsr
 	lsr
 	sta column
+
+	; if the X MSB is not zero, add 32 to the column result
+	; equivalent to "if(sprite_msb2 != 0) { column = column + 32; }"
 
 	lda sprite_msb2
 	beq +
@@ -764,6 +875,7 @@ shift_msb:
 	sta column
 
 	; calculate the screen row
+	; equivalent to "row = (sprite_y - 50) / 8; "
 +	lda sprite_y
 	sec
 	sbc #$32				; y-offset, visible screen area starts at y=$32
@@ -772,23 +884,27 @@ shift_msb:
 	lsr
 	sta row
 
-	; calculate screen matrix address
-scr_addr_calc_addr
+	; at this point, row and column (C8 and C7) contain the proper values for this sprite
+	; now we can calculate screen matrix address
+
+	; equivalent to " result = row * 40;"
 	lda row
 	ldy #40   						; Number of columns per row
-	jsr multiply_8b_by_8b
+	jsr mult_8b_by_8b
 	
 	ldx #$00
 	stx screen_addr_hi
 
+	; equivalent to " address = screen_ram + (row * 40 + column);"
+
 	clc        						; Clear carry flag
 	adc column    					; Add the column value
 	sta screen_addr_lo
-	bcc +
+	lda screen_addr_hi				; add the carry to the hi address
+	adc #$00
+	sta screen_addr_hi
 	
-	inc screen_addr_hi
-
-+	lda #<SCREEN_RAM 				; Low byte of screen memory address
+	lda #<SCREEN_RAM 				; Low byte of screen memory address
 	adc screen_addr_lo
 	sta screen_addr_lo
 	
@@ -801,6 +917,7 @@ scr_addr_calc_addr
 	adc screen_addr_hi
 	sta screen_addr_hi
 
+	; visual debug
 	;ldy #$00
 	;lda #$01
 	;sta (screen_addr_lo),y
@@ -808,12 +925,8 @@ scr_addr_calc_addr
 	rts
 
 	
-
-
-
 ; ====================================================================
-multiply_8b_by_8b:
-
+mult_8b_by_8b:
 num1Hi = $70
 ; ====================================================================
 	sta num1
@@ -821,9 +934,9 @@ num1Hi = $70
 	lda #$00
 	tay
 	sty num1Hi  		; remove this line for 16*8=16bit multiply
-	beq enterLoop
+	beq mult_enterLoop
 
-doAdd:
+mult_doAdd:
 	clc
 	adc num1
 	tax
@@ -832,17 +945,16 @@ doAdd:
 	tay
 	txa
 
-loop:
+mult_loop:
 	asl num1
 	rol num1Hi
-enterLoop:  			; accumulating multiply entry point (enter with .A=lo, .Y=hi)
+mult_enterLoop:  		; accumulating multiply entry point (enter with .A=lo, .Y=hi)
 	lsr num2
-	bcs doAdd
-	bne loop
-
+	bcs mult_doAdd
+	bne mult_loop
 	sta result+1
 	sty result
-    RTS					; Return from subroutine
+    rts
 
 num1:
 	.byte $00			; 8 bit multiplication
@@ -850,6 +962,9 @@ num2:
 	.byte $00
 result:
 	.byte $00, $00		; 16 bit result
+
+
+
 
 ; ====================================================================
 play_chomp_sound:
