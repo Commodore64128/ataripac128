@@ -9,6 +9,8 @@
 .include "sid.asm"
 
 SCREEN_RAM				= $0400
+
+; BANK 0 pointers to the sprite definitions below
 SPRITE_0_POINTER    	= $07F8 		; Last 8 Bytes of Screen RAM
 SPRITE_1_POINTER		= $07F9
 SPRITE_2_POINTER		= $07FA
@@ -18,6 +20,7 @@ SPRITE_5_POINTER		= $07FD
 SPRITE_6_POINTER		= $07FE
 SPRITE_7_POINTER		= $07FF
 
+; BANK 0 RAM containing sprite definitions
 SPRITE_0_DATA       	= $0e00
 SPRITE_1_DATA       	= $0e40
 SPRITE_2_DATA       	= $0e80
@@ -240,6 +243,8 @@ irq_init:
 sprite_init:
 
 	; use default spr 0 pointer location (56x64=3584=$0e00)
+	; LOCATION = (BANK * 16384) + (SPRITE POINTER VALUE * 64)
+	; LOCATION = (0 * 16384) + (56 * 64)
   	lda #56					
   	sta SPRITE_0_POINTER	; pacman
 	lda #59
@@ -611,7 +616,7 @@ sprite_move_right:
 pmr_l0:
 	jsr barrier_check
 	beq +
-	jmp pmr_done					; nope - exit
+	jmp pmr_ghost_change_dir					; nope - exit
 +	dex
 	beq pmr_ok2move
 	ldy #$28
@@ -645,9 +650,18 @@ pmr_done:
 	rts
 
 pmr_ghost_change_dir:
-	;lda sprite_num
-	;sec
-	;sbc #$03
+	lda sprite_num
+	cmp #$03
+	bcc pmr_done
+	ldy current_ghost
+-	lda $a2
+	and #%00000011
+	clc
+	adc #$01
+	cmp ghost_directions,Y
+	beq -
+	sta ghost_directions,y
+	jmp pmr_done
 
 
 
