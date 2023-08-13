@@ -9,6 +9,8 @@
 .include "sid.asm"
 
 SCREEN_RAM				= $0400
+
+; BANK 0 pointers to the sprite definitions below
 SPRITE_0_POINTER    	= $07F8 		; Last 8 Bytes of Screen RAM
 SPRITE_1_POINTER		= $07F9
 SPRITE_2_POINTER		= $07FA
@@ -18,6 +20,7 @@ SPRITE_5_POINTER		= $07FD
 SPRITE_6_POINTER		= $07FE
 SPRITE_7_POINTER		= $07FF
 
+; BANK 0 RAM containing sprite definitions
 SPRITE_0_DATA       	= $0e00
 SPRITE_1_DATA       	= $0e40
 SPRITE_2_DATA       	= $0e80
@@ -48,10 +51,8 @@ DIR_LEFT	= $04
 CHARS_SRC	= $60
 CHARS_DEST 	= $62
 
-SPRITE_0_FRAME_COUNT	= $03
-
 ; temp ZP Variables
-sprite_num    	= $C0
+current_actor   = $C0 ; determines who is moving / current sprite (0-3 - pacman, ghost1, ghost2, ghost3, ghost4)
 sprite_x      	= $C1
 sprite_y      	= $C2
 sprite_msb2    	= $C3
@@ -61,13 +62,19 @@ temp          	= $C6
 column			= $c7
 row				= $c8
 
+
 ; ====================================================================
 ; BASIC LOADER
 ; ====================================================================
-; 10 SYS 7182
+; 10 SYS 8142
 *=$1c01
-	.byte $1c, $1c, $0A, $00, $9E, $20, $37, $31, $38, $32
+	.byte $1c, $1c, $0A, $00, $9E, $20, $38, $31, $39, $32
     .byte $00, $00, $00
+
+;sprite definitions need to start at a 64 byte boundary
+;so that sprite pointers work properly (bank * 64 + x)
+*=$1c40
+.include "sprite_data.asm"
 
 ; ====================================================================
 ; main startup
@@ -83,6 +90,9 @@ main:
 ;fvr: jmp fvr
 	jsr irq_init
 
+	lda #$00
+	sta current_actor
+
 main_loop:
 	lda VIC_SPR_FG_COL_REG
 	sta collision_flg
@@ -94,6 +104,10 @@ main_loop:
 	sta joy_cache
 	jsr joystick_handler
 
+	jsr actor_move
+	jsr anim_actor
+	
+
 main_collision_check:
 	lda collision_flg
 	and #$01
@@ -102,48 +116,53 @@ main_collision_check:
 	;inc VIC_BACKGROUND_COLOR
 
 main_loop_end:
+-	inc delay
+	lda delay
+	cmp #$00
+	bne -
+	inc delay+1
+	lda delay+1
+	cmp #$05
+	bne -
+	lda #00
+	sta delay
+	sta delay+1
+
 	jmp main_loop
 
 collide:
 	;inc VIC_BORDER_COLOR
 	;jsr play_chomp_sound
 	jmp main_loop
+
+
 	
 ; ====================================================================
 ; common data
 ; ====================================================================
-delay_game:
-	.byte $ff
 delay_pp:
 	.byte $ff
-delay_plyr_anim:
-	.byte $ff
-delay_plyr_move:
-	.byte $ff
-sprite_0_fr_count:
-	.byte SPRITE_0_FRAME_COUNT
+delay:
+	.byte $00, $00
 collision_flg:
 	.byte $00
 player_x:
 	.byte $00, $b0
 player_y:
 	.byte $b0
-player_direction:
-	.byte DIR_STOPPED
-player_prev_direction:
-	.byte DIR_RIGHT
-ghost1_direction:
-	.byte $00
-ghost2_direction:
-	.byte $00
-ghost3_direction:
-	.byte $00
-ghost4_direction:
-	.byte $00
+
+actor_directions:
+	.byte DIR_STOPPED, DIR_RIGHT, DIR_RIGHT, DIR_LEFT, DIR_LEFT
+
+actor_bytes_moved:
+	.byte $00, $00, $00, $00, $00 	;tracks how many bytes the sprite has moved
+
+actor_anim_frames:
+	.byte $00, $00, $00, $00, $00	; how many animation frames per actor
+
 joy_cache:
 	.byte $00
-prev_joy_cache:
-	.byte $00
+
 
 ; ====================================================================
 ; initialize the screen
@@ -164,9 +183,17 @@ screen_init:
 
 	; tell vic-ii which 16k bank we want to use
 	; we are using the default bank 0 ($0000-$3fff)
+	; other options include
+	; ...bank 0 - $0000 - $3fff
+	; ...bank 1 - $4000 - $7fff
+	; ...bank 2 - $8000 - $bfff
+	; ...bank 3 - $c000 - $ffff
+	;
+	; bit 6 of the mmu register ($d506) determines if these banks are in first 64k block or second
 	lda CIA2_PORT_REG_A
 	and #%11111100
 	ora #%00000011	; last two bits determine bank
+	sta CIA2_PORT_REG_A
 
 	; disable SHIFT-Commodore
 	;lda #$80
@@ -243,45 +270,61 @@ irq_init:
 ; ====================================================================
 sprite_init:
 
-  	lda #56					; use default spr 0 pointer location (56x64=3584=$0e00)
-  	sta SPRITE_0_POINTER
-	lda #$01              	; enable...Sprite 0 => %0000 0001 (all sprites off except Sprite 0)
-  	sta VIC_SPRITE_ENBL
-	lda #YELLOW				; set sprite 0 foreground color
+	; use default spr 0 pointer location (56x64=3584=$0e00)
+	; LOCATION = (BANK * 16384) + (SPRITE POINTER VALUE * 64)
+  	lda #113					
+  	sta SPRITE_0_POINTER	; pacman (0 * 16384 + 113 x 64 = $1c40)
+	lda #124
+	sta SPRITE_1_POINTER	; ghost 1 (0 * 16384 + 124 x 64 = $1f00)
+	sta SPRITE_2_POINTER	; ghost 2
+	sta SPRITE_3_POINTER	; ghost 3
+	sta SPRITE_4_POINTER	; ghost 4
+
+	; sprite colors
+	lda #YELLOW
   	sta SPRITE_0_COLOR
+	lda #L_RED
+	sta SPRITE_1_COLOR
+	lda #L_BLUE
+	sta SPRITE_2_COLOR
+	lda #PURPLE
+	sta SPRITE_3_COLOR
+	lda #GREEN
+	sta SPRITE_4_COLOR
  
-	; Copy sprite data to sprite pointer, frame 1
-	ldx #$00
--	lda pacman_r_fr1, x
-	sta SPRITE_0_DATA,x
-	inx
-	cpx #$3F
-	bne -
-
-	; Copy sprite data to sprite pointer, frame 2
-	ldx #$00
--	lda pacman_r_fr2, x
-	sta SPRITE_1_DATA,x
-	inx
-	cpx #$3F
-	bne -
-
-	; Copy sprite data to sprite pointer, frame 3
-	ldx #$00
--	lda pacman_r_fr3, x
-	sta SPRITE_2_DATA,x
-	inx
-	cpx #$3F
-	bne -
-
-	;starting sprite location
+	;starting player sprite location
 	lda player_x
 	sta SPRITE_XMSB
 	lda player_x+1
 	sta SPRITE_0_X_POSITION
 	lda player_y
 	sta SPRITE_0_Y_POSITION
+
+	;starting ghost sprite location
+	lda #$b0
+	sta SPRITE_1_X_POSITION
+	lda #$60
+	sta SPRITE_1_Y_POSITION
+
+	lda #$b0
+	sta SPRITE_2_X_POSITION
+	lda #$60;73
+	sta SPRITE_2_Y_POSITION
+
+	lda #$b0
+	sta SPRITE_3_X_POSITION
+	lda #$60;73
+	sta SPRITE_3_Y_POSITION
+
+	lda #$b0
+	sta SPRITE_4_X_POSITION
+	lda #$60;73
+	sta SPRITE_4_Y_POSITION
 	
+	; turn on the sprites
+	lda #%00011111          	; enable sprites 0,1,2,3,4
+  	sta VIC_SPRITE_ENBL
+
 	rts
 
 ; ====================================================================
@@ -332,24 +375,37 @@ chars_init:
 	cli
 	rts             	; and return.
 
+; ====================================================================
+; advance actor animation to the next frame
+; ====================================================================
+anim_actor:
+	ldy current_actor
+	cpy #$00
+	bne anim_actor_ghost
 
+	lda actor_anim_frames, y
+	
+	tax						
+	LDA pacman_anim_pointers, x  	; Load data from the address
+	sta SPRITE_0_POINTER
+	inx
+	txa
+	cmp #$03
+	bne +
+	lda #$00
++	sta actor_anim_frames, Y
+	rts
+
+anim_actor_ghost:
+	rts
+
+pacman_anim_pointers:
+.byte 113, 114, 115
 
 ; ====================================================================
 ; IRQ interrupt service routine
 ; ====================================================================
 irq_handler:
-
-	dec delay_pp
-	dec delay_plyr_anim
-	dec delay_plyr_move
-
-irq_pp_anim_check:
-	; check if its time to do power pellet animation
-	lda delay_pp
-	cmp #$f0
-	bpl irq_plyr_anim_check
-	lda #$ff
-	sta delay_pp
 
     ; flash the power pellets if they exist
 irq_pp_anim:
@@ -376,62 +432,54 @@ irq_pp_flash:
 	sta COLOR_RAM + $2cd + 1
 	sta COLOR_RAM + $2cd + 40
 	sta COLOR_RAM + $2cd + 41
-irq_plyr_anim_check:
-	; time to do player anim?
-	lda delay_plyr_anim
-	cmp #$f5
-	bpl irq_player_move_check
-	lda #$ff
-	sta delay_plyr_anim
-
-irq_player_anim:
-	; do player anim.  change sprite pointer to next frame
-	dec sprite_0_fr_count
-	bne +
-
-	lda #56						; reset to first anim frame
-	sta SPRITE_0_POINTER
-	ldx #SPRITE_0_FRAME_COUNT
-	stx sprite_0_fr_count
-
-	jmp irq_end
-+	inc SPRITE_0_POINTER
-
-irq_player_move_check:
-
-	; time to do player movement?
-	;lda delay_plyr_move
-	;cmp #$ff
-	;bpl irq_end
-	;lda #$ff
-	;sta delay_plyr_move
-
-	; move the sprite
-	lda player_direction
-	cmp #DIR_UP
-	bne +
-	jsr player_move_up
-	jmp irq_end
-
-+	lda player_direction
-	cmp #DIR_DOWN
-	bne +
-	jsr player_move_down
-	jmp irq_end
-
-+	lda player_direction
-	cmp #DIR_RIGHT
-	bne +
-	jsr player_move_right
-	jmp irq_end
-
-+	lda player_direction
-	cmp #DIR_LEFT
-	bne irq_end
-	jsr player_move_left
 
 irq_end
 	jmp $fa65
+	;jmp $ff33
+
+; ====================================================================
+actor_move:
+; ====================================================================
+
+	; loops through all four actors
+	ldy current_actor
+
+	; move the sprite
+	lda actor_directions, y
+	cmp #DIR_UP
+	bne +
+	jsr sprite_move_up
+	jmp actor_move_loop
+
++	lda actor_directions, y
+	cmp #DIR_DOWN
+	bne +
+	jsr sprite_move_down
+	jmp actor_move_loop
+
++	lda actor_directions, y
+	cmp #DIR_RIGHT
+	bne +
+	jsr sprite_move_right
+	jmp actor_move_loop
+
++	lda actor_directions, y
+	cmp #DIR_LEFT
+	bne actor_move_loop
+	jsr sprite_move_left
+
+actor_move_loop:
+	inc current_actor
+	lda current_actor
+	cmp #$05
+	bne +
+	lda #$00
+	sta current_actor
+	jmp actor_move_end
++	jmp actor_move
+
+actor_move_end:
+	rts
 
 ; ====================================================================
 joystick_handler:
@@ -443,7 +491,8 @@ joystick_handler:
 ; ====================================================================
 
 	; we can only change directions if the player is at a pixel boundary
-	lda pm_count
+	ldy #$00
+	lda actor_bytes_moved,y
 	bne joystick_end
 
 	lda joy_cache
@@ -452,7 +501,8 @@ joystick_handler:
 
 	; move right
 	lda #DIR_RIGHT
-	sta player_direction
+	ldy #$00
+	sta actor_directions, y
 	jsr select_player_r_anim
 	jmp joystick_end
 
@@ -462,7 +512,8 @@ joystick_handler:
 
 	; move left
 	lda #DIR_LEFT
-	sta player_direction
+	ldy #$00
+	sta actor_directions, y
 	jsr select_player_l_anim
 	jmp joystick_end
 
@@ -472,7 +523,8 @@ joystick_handler:
 
 	; move up
 	lda #DIR_UP
-	sta player_direction
+	ldy #$00
+	sta actor_directions, y
 	jmp joystick_end
 
 +	lda joy_cache
@@ -481,33 +533,47 @@ joystick_handler:
 
 	; move down
 	lda #DIR_DOWN
-	sta player_direction
+	ldy #$00
+	sta actor_directions, y
 
 joystick_end:
 	rts
 
 ; ====================================================================
 ; Sprite movement routines
-; These routines are sprite agnostic.  Setting 'sprite_num' to the
-; appropriate sprite #, we can move any of the characters including
-; the player.  The routines check the bounds around the sprite's
+; These routines are sprite agnostic.  Setting 'current_actor' to the
+; appropriate sprite #, we can move any of the characters
+; The routines check the bounds around the sprite's
 ; character screen matrix location for walls
 ; ====================================================================
 
-pm_count:
-	.byte $00	; tracks how many bytes the player has moved
+; ====================================================================
+ghost_change_dir:
+; ====================================================================
+	lda current_actor
+	beq ghost_change_dir_done		; if current actor is player, exit
+	tay
+-	lda $a2							; read jiffy timer
+	and #%00000011					; just the last 2 bits (0-3)
+	clc
+	adc #$01						; add 1 (0 is stopped)
+	cmp actor_directions,Y			; compare it to the current direction
+	beq -							; if its the same, do it again
+	sta actor_directions,y			; store the new direction
+
+ghost_change_dir_done:
+	rts	
 
 ; ====================================================================
-player_move_right:
+sprite_move_right:
 ; ====================================================================
 
 	; if we are already moving, keep doing so
-	lda pm_count
+	ldy current_actor
+	lda actor_bytes_moved,y
 	bne pmr_move
 
 	; calculate the sprite screen address
-	lda #$00
-	sta sprite_num
 	jsr sprite_to_screen_address
 
 	; we are looking one space to the right
@@ -526,6 +592,7 @@ player_move_right:
 pmr_l0:
 	jsr barrier_check
 	beq +
+	jsr ghost_change_dir
 	jmp pmr_done					; nope - exit
 +	dex
 	beq pmr_ok2move
@@ -533,36 +600,42 @@ pmr_l0:
 	jmp pmr_l0
 
 pmr_ok2move:
+	ldy current_actor
 	lda #$08
-	sta pm_count
+	sta actor_bytes_moved,y
 
 pmr_move:
 	; move the sprite
+	lda current_actor        	; Load sprite number
+	asl                   	; Multiply current_actor by 2 to get the correct index for X and Y
+	tay                   	; Transfer the result to X
+	lda BASE_SPRITE_X, Y  	; Load sprite X-coordinate
+
 	clc 
-	lda SPRITE_0_X_POSITION
 	adc #$01
+	sta BASE_SPRITE_X,Y
 	bcc +
-	ldx #$01
-	stx SPRITE_XMSB
-+	sta SPRITE_0_X_POSITION
-	dec pm_count
+	jsr set_xmsb
+
++	ldy current_actor
+	lda actor_bytes_moved,Y
+	sec
+	sbc #$01
+	sta actor_bytes_moved,Y
 
 pmr_done:
 	rts
 
-
-
 ; ====================================================================
-player_move_left:
+sprite_move_left:
 ; ====================================================================
 
 	; if we are already moving, keep doing so
-	lda pm_count
+	ldy current_actor
+	lda actor_bytes_moved,y
 	bne pml_move
 
 	; calculate the sprite screen address
-	lda #$00
-	sta sprite_num
 	jsr sprite_to_screen_address
 
 	; we are looking one spaces to the left
@@ -581,6 +654,7 @@ player_move_left:
 pml_l0:
 	jsr barrier_check
 	beq +
+	jsr ghost_change_dir
 	jmp pml_done					; nope - exit
 +	dex
 	beq pml_ok2move
@@ -588,34 +662,42 @@ pml_l0:
 	jmp pml_l0
 
 pml_ok2move:
+	ldy current_actor
 	lda #$08
-	sta pm_count
+	sta actor_bytes_moved,Y
 
 pml_move:
 	; move the sprite
+	lda current_actor        	; Load sprite number
+	asl                   	; Multiply current_actor by 2 to get the correct index for X and Y
+	tay                   	; Transfer the result to X
+	lda BASE_SPRITE_X, Y  	; Load sprite X-coordinate
+
 	sec 
-	lda SPRITE_0_X_POSITION
 	sbc #$01
+	sta BASE_SPRITE_X,Y
 	bcs +
-	ldx #$00
-	stx SPRITE_XMSB
-+	sta SPRITE_0_X_POSITION
-	dec pm_count
+	jsr clear_xmsb
+
++	ldy current_actor
+	lda actor_bytes_moved,Y
+	sec
+	sbc #$01
+	sta actor_bytes_moved,Y
 
 pml_done:
 	rts
 
 ; ====================================================================
-player_move_up:
+sprite_move_up:
 ; ====================================================================
 
 	; if we are already moving, keep doing so
-	lda pm_count
+	ldy current_actor
+	lda actor_bytes_moved,y
 	bne pmu_move
 
 	; calculate the sprite screen address
-	lda #$00
-	sta sprite_num
 	jsr sprite_to_screen_address
 
 	; we are looking one space up, one to the left
@@ -634,6 +716,7 @@ player_move_up:
 pmu_l0:
 	jsr barrier_check
 	beq +
+	jsr ghost_change_dir
 	jmp pmu_done					; nope - exit
 +	dex
 	beq pmu_ok2move
@@ -642,28 +725,39 @@ pmu_l0:
 	rts	
 
 pmu_ok2move:
+	ldy current_actor
 	lda #$0a
-	sta pm_count
+	sta actor_bytes_moved,Y
 
 pmu_move:
 	; move the sprite
-	dec SPRITE_0_Y_POSITION
-	dec pm_count
+	lda current_actor        	; Load sprite number
+	asl                   	; Multiply current_actor by 2 to get the correct index for X and Y
+	tay                   	; Transfer the result to X
+	lda BASE_SPRITE_Y, Y  	; Load sprite X-coordinate
+	sec
+	sbc #$01
+	sta BASE_SPRITE_Y, Y
+
+	ldy current_actor
+	lda actor_bytes_moved,Y
+	sec
+	sbc #$01
+	sta actor_bytes_moved,Y
 
 pmu_done:
 	rts
 
 ; ====================================================================
-player_move_down:
+sprite_move_down:
 ; ====================================================================
 
 	; if we are already moving, keep doing so
-	lda pm_count
+	ldy current_actor
+	lda actor_bytes_moved,y
 	bne pmd_move
 
 	; calculate the sprite screen address
-	lda #$00
-	sta sprite_num
 	jsr sprite_to_screen_address
 
 	; we are looking one space down, one to the left
@@ -682,6 +776,7 @@ player_move_down:
 pmd_l0:
 	jsr barrier_check
 	beq +
+	jsr ghost_change_dir
 	jmp pmd_done					; nope - exit
 +	dex
 	beq pmd_ok2move
@@ -690,16 +785,62 @@ pmd_l0:
 	rts	
 
 pmd_ok2move:
+	ldy current_actor
 	lda #$0a
-	sta pm_count
+	sta actor_bytes_moved,y
 
 pmd_move:
 	; move the sprite
-	inc SPRITE_0_Y_POSITION
-	dec pm_count
+	lda current_actor        	; Load sprite number
+	asl                   	; Multiply current_actor by 2 to get the correct index for X and Y
+	tay                   	; Transfer the result to X
+	lda BASE_SPRITE_Y, Y  	; Load sprite X-coordinate
+	clc
+	adc #$01
+	sta BASE_SPRITE_Y, Y
+	
+	ldy current_actor
+	lda actor_bytes_moved,Y
+	sec
+	sbc #$01
+	sta actor_bytes_moved,Y
 
 pmd_done:
 	rts
+
+; ====================================================================
+set_xmsb:
+;	Y = sprite number
+; ====================================================================
+	; set the XMSB for this sprite (Y = sprite number)
+	LDY current_actor
+    LDA #1          		; Load 1 into the accumulator as the bitmask
+	sta temp				; store bitmask
+	cpy #$00
+	beq set_xmsb_skip
+set_xmsb_loop:
+	ASL temp
+    DEY             		; Decrement Y
+    BNE set_xmsb_loop   	; ...looping, counting down Y
+set_xmsb_skip:
+    LDA SPRITE_XMSB   		; Load the sprite X MSB
+    ORA temp   				; OR with the bitmask to turn on the bit
+    STA SPRITE_XMSB   		; Store the result back, turning on the X MSB
+	rts
+
+; ====================================================================
+clear_xmsb:
+;	Y = sprite number
+; ====================================================================
+	; set the XMSB for this sprite (Y = sprite number)
+	LDY current_actor
+	LDA SPRITE_XMSB   		; Load the byte you want to modify
+	AND clear_xmsb_masks, Y	; Apply the bitmask using the AND instruction
+	STA SPRITE_XMSB   		; Store the result back to the byte
+	rts
+
+clear_xmsb_masks:
+	.byte $FE, $FD, $FB, $F7, $EF, $DF, $BF, $7F
 
 ; ====================================================================
 barrier_check:
@@ -728,7 +869,7 @@ barrier_check:
 
 	cmp #$77
 	bne barrier_check_not_ok
-	lda player_direction
+	lda actor_directions, y
 	cmp #DIR_RIGHT
 	bcs barrier_check_ok
 	jmp barrier_check_not_ok
@@ -748,38 +889,20 @@ barrier_check_ok:
 select_player_r_anim:
 ; ====================================================================
 	; change sprites for animation
-	ldx #$00
--	lda pacman_r_fr2, x
-	sta SPRITE_1_DATA,x
-	inx
-	cpx #$3F
-	bne -
-
-	ldx #$00
--	lda pacman_r_fr3, x
-	sta SPRITE_2_DATA,x
-	inx
-	cpx #$3F
-	bne -
+	lda #114
+	sta pacman_anim_pointers+1
+	lda #115
+	sta pacman_anim_pointers+2
 	rts
 
 ; ====================================================================
 select_player_l_anim:
 ; ====================================================================
 	; change sprites for animation
-	ldx #$00
--	lda pacman_l_fr1, x
-	sta SPRITE_1_DATA,x
-	inx
-	cpx #$3F
-	bne -
-
-	ldx #$00
--	lda pacman_l_fr2, x
-	sta SPRITE_2_DATA,x
-	inx
-	cpx #$3F
-	bne -
+	lda #116
+	sta pacman_anim_pointers+1
+	lda #117
+	sta pacman_anim_pointers+2
 	rts
 
 ; ====================================================================
@@ -799,7 +922,8 @@ sprite_to_screen_address:
 
 spr2scr_calc_x_offset:
 
-	lda player_direction
+	ldy current_actor
+	lda actor_directions,y
 	cmp #DIR_LEFT
 	bne +
 	lda #$07
@@ -812,8 +936,8 @@ spr2scr_calc_x_offset:
 spr2scr_begin_calc:
 	; calculate screen column
 
-	lda sprite_num        	; Load sprite number
-	asl                   	; Multiply sprite_num by 2 to get the correct index for X and Y
+	lda current_actor        	; Load sprite number
+	asl                   	; Multiply current_actor by 2 to get the correct index for X and Y
 	tax                   	; Transfer the result to X
 
 	lda BASE_SPRITE_X, X  	; Load sprite X-coordinate
@@ -829,10 +953,10 @@ spr2scr_offset_x:
 
 
 	; extract the selected sprite's X MSB
-	; equivalent to  "sprite_msb2 = getSpriteXMSB(int sprite_num);"
+	; equivalent to  "sprite_msb2 = getSpriteXMSB(int current_actor);"
 
 	lda SPRITE_XMSB        	; Load sprite X-coordinate MSB
-    ldx sprite_num        	; Load sprite number into X
+    ldx current_actor        	; Load sprite number into X
 	cpx #$00
 	beq spr2scr_done_shift_msb
 spr2scr_shift_msb:
@@ -992,9 +1116,9 @@ play_chomp_sound_yes:
 	sta SID_VCREG1
 	;lda #2			; cause a delay of two jiffies
 	;adc JIFFLO		; add current jiffy reading
-delay:
+sdelay:
 	;cmp JIFFLO		; and wait for two jiffies to elapse
-	;bne delay
+	;bne sdelay
 	lda #%00010000	; ungate sound
 	sta SID_VCREG1
 
@@ -1017,4 +1141,3 @@ playing_chomp:
 
 *= $3800
 .include "screen_data.asm"
-.include "sprite_data.asm"
