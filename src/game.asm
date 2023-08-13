@@ -105,7 +105,8 @@ main_loop:
 	jsr joystick_handler
 
 	jsr actor_move
-	jsr anim_actor
+	;jsr anim_actor
+	;jsr power_pellet_anim
 	
 
 main_collision_check:
@@ -116,13 +117,19 @@ main_collision_check:
 	;inc VIC_BACKGROUND_COLOR
 
 main_loop_end:
+
+waitforvblank:
+  	;LDA $D012      ; Read current raster line
+  	;CMP #$F0       ; Check if it's past a specific line (e.g., line 240)
+  	;BCC waitforvblank ; If not, keep waiting
+
 -	inc delay
 	lda delay
-	cmp #$00
+	cmp #$ff
 	bne -
 	inc delay+1
 	lda delay+1
-	cmp #$05
+	cmp #$07
 	bne -
 	lda #00
 	sta delay
@@ -141,9 +148,11 @@ collide:
 ; common data
 ; ====================================================================
 delay_pp:
-	.byte $ff
+	.byte $00
 delay:
 	.byte $00, $00
+delay_anim:
+	.byte $00
 collision_flg:
 	.byte $00
 player_x:
@@ -403,19 +412,16 @@ pacman_anim_pointers:
 .byte 113, 114, 115
 
 ; ====================================================================
-; IRQ interrupt service routine
+; flash the power pellets if they exist
 ; ====================================================================
-irq_handler:
-
-    ; flash the power pellets if they exist
-irq_pp_anim:
+power_pellet_anim:
 	lda COLOR_RAM + PP1_OFFSET
 	cmp #BROWN
 	beq +
 	lda #BROWN
-	jmp irq_pp_flash
+	jmp power_pellet_anim_flash
 +	lda #YELLOW
-irq_pp_flash:
+power_pellet_anim_flash:
 	sta COLOR_RAM + PP1_OFFSET
 	sta COLOR_RAM + PP1_OFFSET + 1
 	sta COLOR_RAM + PP1_OFFSET + 40
@@ -432,8 +438,48 @@ irq_pp_flash:
 	sta COLOR_RAM + $2cd + 1
 	sta COLOR_RAM + $2cd + 40
 	sta COLOR_RAM + $2cd + 41
+	rts
 
-irq_end
+; ====================================================================
+; IRQ interrupt service routine
+; ====================================================================
+irq_handler:
+	php
+	pha 
+	tya
+	pha
+	txa
+	pha
+
+	;lda delay_pp
+	;clc
+	;adc #$01
+	;sta delay_pp
+	;cmp #$08
+	;bne +
+	jsr power_pellet_anim
+	;lda #$00
+	;sta delay_pp
+
++	lda delay_anim
+	clc
+	adc #$01
+	sta delay_anim
+	cmp #$08
+	bne +
+	jsr anim_actor
+	lda #$00
+	sta delay_anim
++	
+	pla
+	tax
+	pla
+	tay
+	pla
+	plp 
+	
+
+irq_end:
 	jmp $fa65
 	;jmp $ff33
 
