@@ -53,6 +53,7 @@ GAME_STATE_NEWGAME 	= $01
 GAME_STATE_RESET	= $02
 GAME_STATE_RUNNING	= $03
 GAME_STATE_DYING	= $04
+GAME_STATE_QUIT		= $05
 
 CHARS_SRC	= $60
 CHARS_DEST 	= $62
@@ -239,18 +240,40 @@ reset:
 	sta game_state
 	rts
 
+; ====================================================================
+; quit the game
+; ====================================================================
+quit:
+	sei
+	lda irq_original
+	sta $314
+	lda irq_original+1
+	sta $315
+	cli
+
+	rts
 
 ; ====================================================================
 ; initialize the irq vector
 ; ====================================================================
 irq_init:
 	sei
+
+	lda $314
+	sta irq_original
+	lda $315
+	sta irq_original+1
+
 	lda #>irq_handler
 	sta $315
 	lda #<irq_handler
 	sta $314
+
 	cli
 	rts
+
+irq_original:
+	.byte $00, $00
 
 ; ====================================================================
 ; IRQ interrupt service routine
@@ -262,7 +285,9 @@ irq_handler:
 	pha
 	txa
 	pha
-
+	
+	;inc $d020						; debug
+	
 	; takes different actions depending on game state
 	lda game_state
 	cmp #GAME_STATE_DEMO
