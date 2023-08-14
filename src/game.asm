@@ -48,6 +48,12 @@ DIR_DOWN	= $02
 DIR_RIGHT	= $03
 DIR_LEFT	= $04
 
+GAME_STATE_DEMO 	= $00
+GAME_STATE_NEWGAME 	= $01
+GAME_STATE_RESET	= $02
+GAME_STATE_RUNNING	= $03
+GAME_STATE_DYING	= $04
+
 CHARS_SRC	= $60
 CHARS_DEST 	= $62
 
@@ -82,50 +88,34 @@ row				= $c8
 main:
 
 	lda #$3e
-	sta MMUCR				; All RAM1 with IO block
+	sta MMUCR								; All RAM1 with IO block
 
-	jsr screen_init
 	jsr chars_init
-	jsr sprite_init
 	jsr irq_init
 
-	lda #$00
-	sta current_actor
+	jsr new_game
 
 main_loop:
-	lda VIC_SPR_FG_COL_REG
-	sta collision_flg
-
-	; check joystick
-	lda IO_PORT_DATA_REG_A
-	;cmp joy_cache
-	;beq main_collision_check
+	lda IO_PORT_DATA_REG_A					; capture joystick
 	sta joy_cache
-	jsr joystick_handler
 
+	jsr joystick_handler
 	jsr actor_move
 	jsr power_pellet_anim
 
 main_spr_spr_collision_check:
 	lda VIC_SPR_SPR_COL_REG					; check sprite to sprite collision register
 	and #%00000001							; was the player (sprite 0) involved?
-	beq main_collision_check				; no, skip ahead
+	beq main_loop_end						; no, skip ahead
 
-	lda #$01								; set game state to player_dies
+	lda #GAME_STATE_DYING					; set game state to player_dies
 	sta game_state
 
-main_wait_for_reset:						; loop while die animation and sound
-	lda game_state
-	beq main_loop_end
-	jmp main_wait_for_reset
-
-
-main_collision_check:
-	lda collision_flg
-	and #$01
-	cmp #$01
-    beq collide
-	;inc VIC_BACKGROUND_COLOR
+main_wait:
+	lda game_state							; wait for game state to change
+	cmp #GAME_STATE_DYING
+	bne main_loop_end
+	jmp main_wait
 
 main_loop_end:
 
@@ -147,12 +137,6 @@ waitforvblank:
 	sta delay+1
 
 	jmp main_loop
-
-collide:
-	;inc VIC_BORDER_COLOR
-	;jsr play_chomp_sound
-	jmp main_loop
-
 
 	
 ; ====================================================================
@@ -184,16 +168,33 @@ joy_cache:
 	.byte $00
 
 game_state:
-	.byte $00						; 0=running, 1=player dies
+	.byte $00						; 0=demo mode, 1=new game, 2=resetting, 3=running, 4=player dies 
 
 player_lives:
 	.byte $03
 
+; ====================================================================
+; new game
+; ====================================================================
+new_game:
+	lda #GAME_STATE_NEWGAME
+	sta game_state
+	
+	lda #$03
+	sta player_lives
+
+	jsr screen_init
+	jsr reset
+
+	; start new game "music"
+	rts
 
 ; ====================================================================
 ; reset
 ; ====================================================================
 reset:
+	lda #GAME_STATE_RESET
+	sta game_state
 
 	jsr sprite_init
 
@@ -222,8 +223,8 @@ reset:
 	sta actor_directions
 	;lda DIR_RIGHT
 	;sta actor_directions+1
-	lda DIR_RIGHT
-	sta actor_directions+2
+	;lda DIR_RIGHT
+	;sta actor_directions+2
 	;lda DIR_LEFT
 	;sta actor_directions+3
 	;lda DIR_LEFT
@@ -233,8 +234,90 @@ reset:
 
 	lda #$00
 	sta current_actor
+
+	lda #GAME_STATE_RUNNING
 	sta game_state
 	rts
+
+
+; ====================================================================
+; initialize the irq vector
+; ====================================================================
+irq_init:
+	sei
+	lda #>irq_handler
+	sta $315
+	lda #<irq_handler
+	sta $314
+	cli
+	rts
+
+; ====================================================================
+; IRQ interrupt service routine
+; ====================================================================
+irq_handler:
+	php
+	pha 
+	tya
+	pha
+	txa
+	pha
+
+	; takes different actions depending on game state
+	lda game_state
+	cmp #GAME_STATE_DEMO
+	bne irq_check_state1
+	jmp irq_end						; if game_state = 0, demo mode.  Do nothing here
+
+irq_check_state1:
+	cmp #GAME_STATE_NEWGAME
+	bne irq_check_state2
+	jmp irq_end						; if game_state = 1, new game.  Do nothing here
+
+irq_check_state2:
+	cmp #GAME_STATE_RESET
+	bne irq_check_state3			
+	jmp irq_end						; if game_state = 2, resetting.  Do nothing here
+
+irq_check_state3:
+	cmp #GAME_STATE_RUNNING
+	bne irq_check_state4			
+
+	lda delay_anim					; if game_state = 3, running. show actor anim frames
+	clc
+	adc #$01
+	sta delay_anim
+	cmp #$08
+	bne irq_end
+	jsr anim_actor
+	lda #$00
+	sta delay_anim
+	jmp irq_end
+
+irq_check_state4:
+	cmp #GAME_STATE_DYING
+	bne irq_end						
+
+	lda delay_anim					; if game_state = 4, player killed. show dying anim frames
+	clc
+	adc #$01
+	sta delay_anim
+	cmp #$08
+	bne irq_end
+	jsr anim_player_dies
+	lda #$00
+	sta delay_anim
+	jmp irq_end
+
+irq_end:	
+	pla
+	tax
+	pla
+	tay
+	pla
+	plp 
+	jmp $fa65
+	;jmp $ff33
 
 
 ; ====================================================================
@@ -324,18 +407,6 @@ screen_l0:
 	inx
 	cpx #$04
 	bne screen_l0
-	rts
-
-; ====================================================================
-; initialize the irq vector
-; ====================================================================
-irq_init:
-	sei
-	lda #>irq_handler
-	sta $315
-	lda #<irq_handler
-	sta $314
-	cli
 	rts
 
 ; ====================================================================
@@ -529,66 +600,6 @@ power_pellet_anim_flash:
 	sta COLOR_RAM + $2cd + 40
 	sta COLOR_RAM + $2cd + 41
 	rts
-
-; ====================================================================
-; IRQ interrupt service routine
-; ====================================================================
-irq_handler:
-	php
-	pha 
-	tya
-	pha
-	txa
-	pha
-
-	lda game_state					; animation is different depending on game state
-	bne irq_next					; player killed?
-
-	;lda delay_pp
-	;clc
-	;adc #$01
-	;sta delay_pp
-	;cmp #$08
-	;bne +
-	
-	;lda #$00
-	;sta delay_pp
-
-	lda delay_anim
-	clc
-	adc #$01
-	sta delay_anim
-	cmp #$08
-	bne irq_end
-	jsr anim_actor
-	lda #$00
-	sta delay_anim
-	jmp irq_end
-
-irq_next:
-	cmp #$01					; player killed?
-	bne irq_end
-
-	lda delay_anim
-	clc
-	adc #$01
-	sta delay_anim
-	cmp #$08
-	bne irq_end
-	jsr anim_player_dies
-	lda #$00
-	sta delay_anim
-	jmp irq_end
-
-irq_end:	
-	pla
-	tax
-	pla
-	tay
-	pla
-	plp 
-	jmp $fa65
-	;jmp $ff33
 
 ; ====================================================================
 actor_move:
