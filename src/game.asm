@@ -87,7 +87,6 @@ main:
 	jsr screen_init
 	jsr chars_init
 	jsr sprite_init
-;fvr: jmp fvr
 	jsr irq_init
 
 	lda #$00
@@ -105,9 +104,21 @@ main_loop:
 	jsr joystick_handler
 
 	jsr actor_move
-	;jsr anim_actor
-	;jsr power_pellet_anim
-	
+	jsr power_pellet_anim
+
+main_spr_spr_collision_check:
+	lda VIC_SPR_SPR_COL_REG					; check sprite to sprite collision register
+	and #%00000001							; was the player (sprite 0) involved?
+	beq main_collision_check				; no, skip ahead
+
+	lda #$01								; set game state to player_dies
+	sta game_state
+
+main_wait_for_reset:						; loop while die animation and sound
+	lda game_state
+	beq main_loop_end
+	jmp main_wait_for_reset
+
 
 main_collision_check:
 	lda collision_flg
@@ -171,6 +182,59 @@ actor_anim_frames:
 
 joy_cache:
 	.byte $00
+
+game_state:
+	.byte $00						; 0=running, 1=player dies
+
+player_lives:
+	.byte $03
+
+
+; ====================================================================
+; reset
+; ====================================================================
+reset:
+
+	jsr sprite_init
+
+	lda #$00
+	sta actor_bytes_moved
+	sta actor_bytes_moved+1
+	sta actor_bytes_moved+2
+	sta actor_bytes_moved+3
+	sta actor_bytes_moved+4
+	sta actor_anim_frames
+	sta actor_anim_frames+1
+	sta actor_anim_frames+2
+	sta actor_anim_frames+3
+	sta actor_anim_frames+4
+	sta joy_cache
+	sta delay_pp
+	sta delay
+	sta delay_anim
+	sta pacman_die_anim_frame
+
+	ldx #$00
+	lda pacman_anim_pointers,x
+	sta SPRITE_0_POINTER
+
+	lda DIR_STOPPED
+	sta actor_directions
+	;lda DIR_RIGHT
+	;sta actor_directions+1
+	lda DIR_RIGHT
+	sta actor_directions+2
+	;lda DIR_LEFT
+	;sta actor_directions+3
+	;lda DIR_LEFT
+	;sta actor_directions+4
+
+	jsr select_player_r_anim
+
+	lda #$00
+	sta current_actor
+	sta game_state
+	rts
 
 
 ; ====================================================================
@@ -412,6 +476,32 @@ pacman_anim_pointers:
 .byte 113, 114, 115
 
 ; ====================================================================
+anim_player_dies:
+; ====================================================================
+
+	; play the die animation
+	lda pacman_die_anim_frame
+	
+	tax						
+	LDA pacman_die_pointers, x  	; Load data from the address
+	sta SPRITE_0_POINTER
+	inx
+	txa
+	cmp #$06
+	bne +
+	
+	jsr reset						; animation is done.  reset to play again
+	rts
+
++	sta pacman_die_anim_frame
+	rts
+
+pacman_die_pointers:
+	.byte 118, 119, 120, 121, 122, 123
+pacman_die_anim_frame:
+	.byte $00
+
+; ====================================================================
 ; flash the power pellets if they exist
 ; ====================================================================
 power_pellet_anim:
@@ -451,35 +541,52 @@ irq_handler:
 	txa
 	pha
 
+	lda game_state					; animation is different depending on game state
+	bne irq_next					; player killed?
+
 	;lda delay_pp
 	;clc
 	;adc #$01
 	;sta delay_pp
 	;cmp #$08
 	;bne +
-	jsr power_pellet_anim
+	
 	;lda #$00
 	;sta delay_pp
 
-+	lda delay_anim
+	lda delay_anim
 	clc
 	adc #$01
 	sta delay_anim
 	cmp #$08
-	bne +
+	bne irq_end
 	jsr anim_actor
 	lda #$00
 	sta delay_anim
-+	
+	jmp irq_end
+
+irq_next:
+	cmp #$01					; player killed?
+	bne irq_end
+
+	lda delay_anim
+	clc
+	adc #$01
+	sta delay_anim
+	cmp #$08
+	bne irq_end
+	jsr anim_player_dies
+	lda #$00
+	sta delay_anim
+	jmp irq_end
+
+irq_end:	
 	pla
 	tax
 	pla
 	tay
 	pla
 	plp 
-	
-
-irq_end:
 	jmp $fa65
 	;jmp $ff33
 
@@ -1132,8 +1239,6 @@ num2:
 	.byte $00
 result:
 	.byte $00, $00		; 16 bit result
-
-
 
 
 ; ====================================================================
