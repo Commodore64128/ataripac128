@@ -131,7 +131,7 @@ waitforvblank:
 	bne -
 	inc delay+1
 	lda delay+1
-	cmp #$07
+	cmp #$05
 	bne -
 	lda #00
 	sta delay
@@ -754,6 +754,98 @@ ghost_change_dir_done:
 	rts	
 
 ; ====================================================================
+check_if_player_eat_dot:
+; ====================================================================
+	; if player, check if over pellet
+	ldy current_actor
+	cpy #$00
+	beq +
+	jmp ciped_done
+
+	; temporarily hold screen locations
++	lda screen_addr_lo
+	pha
+	lda screen_addr_hi
+	pha
+
+	; check top quad
+	jsr check_quad_for_dot
+
+	; add 40 to location to check bottom quad
++	lda screen_addr_lo
+	clc
+	adc #$28
+	sta screen_addr_lo
+	lda screen_addr_hi
+	adc #$00
+	sta screen_addr_hi
+
+	; check bottom quad
+	jsr check_quad_for_dot
+
+	; subtract 41 to location to check top left quad
++	lda screen_addr_lo
+	sec
+	sbc #$29
+	sta screen_addr_lo
+	lda screen_addr_hi
+	sbc #$00
+	sta screen_addr_hi
+
+	; check top left quad
+	jsr check_quad_for_dot
+
+ 	; add 40 to location to check bottom left quad
++	lda screen_addr_lo
+	clc
+	adc #$28
+	sta screen_addr_lo
+	lda screen_addr_hi
+	adc #$00
+	sta screen_addr_hi
+
+	; check bottom left quad
+	jsr check_quad_for_dot
+
+ciped_restore:
+	; restore screen location
+	pla
+	sta screen_addr_hi
+	pla
+	sta screen_addr_lo
+
+ciped_done:
+	rts
+
+check_quad_for_dot:
+	lda (screen_addr_lo),y
+	cmp #$52
+	bne +
+	lda #$20
+	sta (screen_addr_lo),y
++	cmp #$45
+	bne +
+	lda #$20
+	sta (screen_addr_lo),y
++	cmp #$6c
+	bne +
+	lda #$20
+	sta (screen_addr_lo),y
++	cmp #$7b
+	bne +
+	lda #$20
+	sta (screen_addr_lo),y
++	cmp #$7c
+	bne +
+	lda #$20
+	sta (screen_addr_lo),y
++	cmp #$7e
+	bne +
+	lda #$20
+	sta (screen_addr_lo),y
++	rts
+
+; ====================================================================
 sprite_move_right:
 ; ====================================================================
 
@@ -764,6 +856,9 @@ sprite_move_right:
 
 	; calculate the sprite screen address
 	jsr sprite_to_screen_address
+
+	; if player, check if over pellet
+	jsr check_if_player_eat_dot
 
 	; we are looking one space to the right
 	; so add 1 to the location
@@ -827,6 +922,9 @@ sprite_move_left:
 	; calculate the sprite screen address
 	jsr sprite_to_screen_address
 
+	; if player, check if over pellet
+	jsr check_if_player_eat_dot
+
 	; we are looking one spaces to the left
 	; so subtract 1 to the address
 	lda screen_addr_lo
@@ -889,6 +987,9 @@ sprite_move_up:
 	; calculate the sprite screen address
 	jsr sprite_to_screen_address
 
+	; if player, check if over pellet
+	jsr check_if_player_eat_dot
+
 	; we are looking one space up, one to the left
 	; so subtract 41 from the address
 	lda screen_addr_lo
@@ -948,6 +1049,9 @@ sprite_move_down:
 
 	; calculate the sprite screen address
 	jsr sprite_to_screen_address
+
+	; if player, check if over pellet
+	jsr check_if_player_eat_dot
 
 	; we are looking one space down, one to the left
 	; so add 39 to the address
