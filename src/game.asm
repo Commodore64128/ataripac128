@@ -236,6 +236,8 @@ reset:
 	lda #$00
 	sta current_actor
 
+	jsr play_reset_sound
+
 	lda #GAME_STATE_RUNNING
 	sta game_state
 	rts
@@ -1380,6 +1382,69 @@ num2:
 result:
 	.byte $00, $00		; 16 bit result
 
+; ====================================================================
+delay_timer:
+;=====================================================================
+	pha
+-	inc delay_timer_data
+	lda delay_timer_data
+	cmp #$ff
+	bne -
+	inc delay_timer_data+1
+	lda delay_timer_data+1
+	cmp #$20
+	bne -
+	lda #00
+	sta delay_timer_data
+	sta delay_timer_data+1
+	pla
+	rts
+
+delay_timer_data:
+.byte $00, $00
+
+
+; ====================================================================
+play_reset_sound:
+; ====================================================================
+	jsr sidclr
+	
+	lda #$08
+	sta SID_PWHI1
+	lda #$00
+	sta SID_PWLO1
+
+	lda #$0F
+	sta SID_ATDCY1
+	lda #$00
+	sta SID_SUREL1
+
+	lda #15			; set volume
+	sta SID_VOL
+
+	ldy #$00
+prs_data_loop:
+	lda sound_data,Y
+	beq prs_end 
+	sta SID_FREHI1
+	iny
+	lda sound_data,Y
+	sta SID_FRELO1
+	lda #$41
+	sta SID_VCREG1
+	jsr delay_timer
+	lda #$40
+	sta SID_VCREG1
+	jsr delay_timer
+	iny
+	jmp prs_data_loop
+prs_end:
+	rts
+
+sound_data:
+	.byte 32,177,36,214
+	.byte 32,177,33,155
+	.byte $00
 
 ; ====================================================================
 play_chomp_sound:
