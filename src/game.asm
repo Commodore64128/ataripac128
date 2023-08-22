@@ -111,6 +111,7 @@ main_spr_spr_collision_check:
 
 	lda #GAME_STATE_DYING					; set game state to player_dies
 	sta game_state
+	jsr play_die_sound
 
 main_wait:
 	lda game_state							; wait for game state to change
@@ -289,7 +290,15 @@ irq_handler:
 	pha
 	
 	;inc $d020						; debug
-	
+	;lda irq_sound_playing
+	;bne +
+	;lda dot_eaten
+	;bne +
+	;jsr play_chomp_sound
+	;lda #$00
+	;sta dot_eaten
+
++	
 	; takes different actions depending on game state
 	lda game_state
 	cmp #GAME_STATE_DEMO
@@ -825,27 +834,49 @@ check_quad_for_dot:
 	bne +
 	lda #$20
 	sta (screen_addr_lo),y
+	lda #$01
+	sta dot_eaten
+	jmp dot_check_end
 +	cmp #$45
 	bne +
 	lda #$20
 	sta (screen_addr_lo),y
+	lda #$01
+	sta dot_eaten
+	jmp dot_check_end
 +	cmp #$6c
 	bne +
 	lda #$20
 	sta (screen_addr_lo),y
+	lda #$01
+	sta dot_eaten
+	jmp dot_check_end
 +	cmp #$7b
 	bne +
 	lda #$20
 	sta (screen_addr_lo),y
+	lda #$01
+	sta dot_eaten
+	jmp dot_check_end
 +	cmp #$7c
 	bne +
 	lda #$20
 	sta (screen_addr_lo),y
+	lda #$01
+	sta dot_eaten
+	jmp dot_check_end
 +	cmp #$7e
-	bne +
+	bne dot_check_end
 	lda #$20
 	sta (screen_addr_lo),y
-+	rts
+	lda #$01
+	sta dot_eaten
+	jmp dot_check_end
+dot_check_end:
+	rts
+
+dot_eaten:
+	.byte $00
 
 ; ====================================================================
 sprite_move_right:
@@ -1407,7 +1438,7 @@ delay_timer_data:
 ; ====================================================================
 play_reset_sound:
 ; ====================================================================
-	jsr sidclr
+	jsr SID_Clear_Registers
 	
 	lda #$08
 	sta SID_PWHI1
@@ -1424,11 +1455,11 @@ play_reset_sound:
 
 	ldy #$00
 prs_data_loop:
-	lda sound_data,Y
+	lda sound_data_reset,Y
 	beq prs_end 
 	sta SID_FREHI1
 	iny
-	lda sound_data,Y
+	lda sound_data_reset,Y
 	sta SID_FRELO1
 	lda #$41
 	sta SID_VCREG1
@@ -1441,59 +1472,100 @@ prs_data_loop:
 prs_end:
 	rts
 
-sound_data:
+sound_data_reset:
 	.byte 32,177,36,214
 	.byte 32,177,33,155
 	.byte $00
 
 ; ====================================================================
-play_chomp_sound:
+play_die_sound:
 ; ====================================================================
-	lda playing_chomp
-	beq play_chomp_sound_yes
-	rts
-
-play_chomp_sound_yes:
-	lda #$01
-	sta playing_chomp
+	jsr SID_Clear_Registers
 	
-	jsr sidclr
+	lda #$08
+	sta SID_PWHI1
+	lda #$00
+	sta SID_PWLO1
+
+	lda #$0F
+	sta SID_ATDCY1
+	lda #$00
+	sta SID_SUREL1
+
 	lda #15			; set volume
 	sta SID_VOL
-	lda #$00		; set attack / decay
-	sta SID_ATDCY1
-	lda #$10		; set sustain / release
-	sta SID_SUREL1
-	lda #132		; voice 1 freq (lo)
-	sta SID_FRELO1
-	lda #10			; voice 1 freq (hi)
+
+	ldy #$00
+pds_data_loop:
+	lda sound_data_die,Y
+	beq prs_end 
 	sta SID_FREHI1
-	lda #%00010001	; triangle waveform and gate sound
+	iny
+	lda sound_data_die,Y
+	sta SID_FRELO1
+	lda #$41
 	sta SID_VCREG1
-	;lda #2			; cause a delay of two jiffies
-	;adc JIFFLO		; add current jiffy reading
-sdelay:
-	;cmp JIFFLO		; and wait for two jiffies to elapse
-	;bne sdelay
-	lda #%00010000	; ungate sound
+	jsr delay_timer
+	lda #$40
 	sta SID_VCREG1
+	jsr delay_timer
+	iny
+	jmp pds_data_loop
+pds_end:
+	rts
+
+sound_data_die:
+	.byte 41,177,43,214
+	.byte 45,177,47,155
+	.byte $00
+
+; ====================================================================
+play_chomp_sound:
+; ====================================================================
+	lda #$01
+	sta irq_sound_playing
+
+	jsr SID_Clear_Registers
+	
+	lda #$08
+	sta SID_PWHI1
+	lda #$00
+	sta SID_PWLO1
+
+	lda #$0F
+	sta SID_ATDCY1
+	lda #$00
+	sta SID_SUREL1
+
+	lda #15			; set volume
+	sta SID_VOL
+
+	lda #10
+	sta SID_FREHI1
+	lda #255
+	sta SID_FRELO1
+	lda #$41
+	sta SID_VCREG1
+	jsr delay_timer
+	lda #$40
+	sta SID_VCREG1
+	jsr delay_timer
 
 	lda #$00
-	sta playing_chomp
-
+	sta irq_sound_playing
 	rts
 
-sidclr:
+irq_sound_playing:
+	.byte $00
+
+
+SID_Clear_Registers:
 	lda #$00			; fill with zero
 	ldy #24
-sidlop:
-	sta SID_FRELO1,y 	; store zero in sid chip address
+-	sta SID_FRELO1,y 	; store zero in sid chip address
 	dey					; for next lower byte
-	bpl sidlop			; fill 25 bytes
+	bpl -   			; fill 25 bytes
 	rts
-
-playing_chomp:
-	.byte $00
 
 *= $3800
 .include "screen_data.asm"
