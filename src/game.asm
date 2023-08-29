@@ -45,8 +45,8 @@ PP4_OFFSET = $2cd
 DIR_STOPPED	= $00
 DIR_UP		= $01
 DIR_DOWN	= $02
-DIR_RIGHT	= $03
-DIR_LEFT	= $04
+DIR_RIGHT	= $04
+DIR_LEFT	= $08
 
 GAME_STATE_DEMO 	= $00
 GAME_STATE_NEWGAME 	= $01
@@ -100,7 +100,8 @@ main_loop:
 	lda IO_PORT_DATA_REG_A					; capture joystick
 	sta joy_cache
 
-	jsr joystick_handler
+	jsr player_input_handler
+	jsr enemy_ai_handler					; if ghost, change direction
 	jsr actor_move
 	jsr power_pellet_anim
 
@@ -158,13 +159,22 @@ player_y:
 	.byte $b0
 
 actor_directions:
-	.byte DIR_STOPPED, DIR_RIGHT, DIR_RIGHT, DIR_LEFT, DIR_LEFT
+	.byte DIR_STOPPED, DIR_UP, DIR_UP, DIR_UP, DIR_UP
 
 actor_bytes_moved:
 	.byte $00, $00, $00, $00, $00 	;tracks how many bytes the sprite has moved
 
 actor_anim_frames:
 	.byte $00, $00, $00, $00, $00	; how many animation frames per actor
+
+actor_position_matrix:				; location of player in position matrix
+	.byte <(postion_matrix+462), >(postion_matrix+462)
+	.byte <(postion_matrix+240), >(postion_matrix+240)
+	.byte <(postion_matrix+240), >(postion_matrix+240)
+	.byte <(postion_matrix+240), >(postion_matrix+240)
+	.byte <(postion_matrix+240), >(postion_matrix+240)
+
+
 
 joy_cache:
 	.byte $00
@@ -174,6 +184,9 @@ game_state:
 
 player_lives:
 	.byte $03
+
+player_score:
+	.word $0000
 
 ; ====================================================================
 ; new game
@@ -221,16 +234,30 @@ reset:
 	lda pacman_anim_pointers,x
 	sta SPRITE_0_POINTER
 
-	lda DIR_STOPPED
+	lda #DIR_STOPPED
 	sta actor_directions
-	;lda DIR_RIGHT
-	;sta actor_directions+1
-	;lda DIR_RIGHT
-	;sta actor_directions+2
-	;lda DIR_LEFT
-	;sta actor_directions+3
-	;lda DIR_LEFT
-	;sta actor_directions+4
+	lda #DIR_UP
+	sta actor_directions+1
+	sta actor_directions+2
+	sta actor_directions+3
+	sta actor_directions+4
+
+	lda #<(postion_matrix+462)
+	sta actor_position_matrix
+	lda #>(postion_matrix+462)
+	sta actor_position_matrix+1
+
+	lda #<(postion_matrix+240)
+	sta actor_position_matrix+2
+	sta actor_position_matrix+4
+	sta actor_position_matrix+6
+	sta actor_position_matrix+8
+
+	lda #>(postion_matrix+240)
+	sta actor_position_matrix+3
+	sta actor_position_matrix+5
+	sta actor_position_matrix+7
+	sta actor_position_matrix+9
 
 	jsr select_player_r_anim
 
@@ -483,22 +510,22 @@ sprite_init:
 	;starting ghost sprite location
 	lda #$b0
 	sta SPRITE_1_X_POSITION
-	lda #$60
+	lda #$74 ;60
 	sta SPRITE_1_Y_POSITION
 
 	lda #$b0
 	sta SPRITE_2_X_POSITION
-	lda #$60;73
+	lda #$74; 60;73
 	sta SPRITE_2_Y_POSITION
 
 	lda #$b0
 	sta SPRITE_3_X_POSITION
-	lda #$60;73
+	lda #$74; 60;73
 	sta SPRITE_3_Y_POSITION
 
 	lda #$b0
 	sta SPRITE_4_X_POSITION
-	lda #$60;73
+	lda #$74; 60;73
 	sta SPRITE_4_Y_POSITION
 	
 	; turn on the sprites
@@ -554,6 +581,90 @@ chars_init:
 
 	cli
 	rts             	; and return.
+
+; ====================================================================
+player_input_handler:
+;
+; This routine is called when a direction is changed by the player
+; it will set the player_direction to the new direction value which
+; is used in the irq routine for movement and if left or right, will 
+; switch to the appropriate face / animation
+; ====================================================================
+
+	; we can only change directions if the player is at a pixel boundary
+	ldy #$00
+	lda actor_bytes_moved,y
+	bne player_input_end
+
+	; stash current direction (incase we cant change directions due to wall)
+	lda actor_directions, y
+	sta player_current_direction
+
+	lda joy_cache
+	and #$08
+	bne +
+
+	; move right
+	lda #DIR_RIGHT
+	ldy #$00
+	sta actor_directions, y
+	jsr select_player_r_anim
+	jmp player_input_end
+
++	lda joy_cache
+	and #$04
+	bne +
+
+	; move left
+	lda #DIR_LEFT
+	ldy #$00
+	sta actor_directions, y
+	jsr select_player_l_anim
+	jmp player_input_end
+
++	lda joy_cache
+	and #$01
+	bne +
+
+	; move up
+	lda #DIR_UP
+	ldy #$00
+	sta actor_directions, y
+	jmp player_input_end
+
++	lda joy_cache
+	and #$02
+	bne player_input_end
+
+	; move down
+	lda #DIR_DOWN
+	ldy #$00
+	sta actor_directions, y
+
+player_input_end:
+	rts
+
+player_current_direction:
+	.byte DIR_STOPPED
+
+; ====================================================================
+enemy_ai_handler:
+;
+; This routine is called for the enemies to determine their next path
+; ====================================================================
+
+	ldy current_actor
+	beq enemy_ai_end
+
+	; we can only change directions if the player is at a pixel boundary
+	lda actor_bytes_moved,y
+	bne enemy_ai_end
+
+	jsr ghost_change_dir
+
+enemy_ai_end:
+	rts
+
 
 ; ====================================================================
 ; advance actor animation to the next frame
@@ -637,6 +748,58 @@ power_pellet_anim_flash:
 	sta COLOR_RAM + $2cd + 41
 	rts
 
+; data to represent possible directions  
+; this allows us to skip wall collision detection
+; There are 37 positions horizontally that an actor can be in,
+; and 15 vertically.
+;
+; each byte represents a position.  the lower four bits represent
+; possible movement in this location:
+; ....0001 = up
+; ....0010 = down
+; ....0100 = right
+; ....1000 = left
+;
+; 5th bit indicates if a dot is there.  this value changes to 0 when eaten
+; 6th bit indicates if a power pellet is there.  this value changes to 0 when eaten
+;
+; this matrix makes up the actual maze.  each actor can move 8 bytes left/right on the screen, 10 bytes up/down from one matrix cell to another.
+; the bit patterns determine which direction an actor may go in that cell
+; its a lot of data, but prevents us from sprite to screen calculations and looking around the actor for walls
+PM_BAD	= %00000000
+PM_RL 	= %00011100
+PM_DR 	= %00010110
+PM_DL 	= %00011010
+PM_UR	= %00010101
+PM_UL 	= %00011001
+PM_UD 	= %00010011
+PM_UDL 	= %00011011
+PM_UDR	= %00010111
+PM_UDRL = %00011111
+PM_DRL	= %00011110
+PM_URL 	= %00011101
+PM_GUD  = %10000011
+PM_GU   = %10000001 
+
+postion_matrix:
+;                                                                                                                                                     center
+.byte PM_DR, PM_RL,  PM_RL,  PM_RL,  PM_RL,  PM_DRL, PM_RL,  PM_RL,  PM_DRL, PM_RL,  PM_RL,  PM_RL,  PM_DL,  PM_BAD, PM_BAD, PM_DR,   PM_RL,  PM_RL,  PM_URL, PM_RL,  PM_RL,  PM_DL,   PM_BAD, PM_BAD, PM_DR,  PM_RL,  PM_RL,  PM_RL,  PM_DRL, PM_RL,  PM_RL,  PM_DRL, PM_RL,  PM_RL,  PM_RL,  PM_RL,  PM_DL
+.byte PM_UD, PM_BAD, PM_BAD, PM_BAD, PM_BAD, PM_UD,  PM_BAD, PM_BAD, PM_UD,  PM_BAD, PM_BAD, PM_BAD, PM_UD,  PM_BAD, PM_BAD, PM_UD,   PM_BAD, PM_BAD, PM_BAD, PM_BAD, PM_BAD, PM_UD,   PM_BAD, PM_BAD, PM_UD,  PM_BAD, PM_BAD, PM_BAD, PM_UD,  PM_BAD, PM_BAD, PM_UD,  PM_BAD, PM_BAD, PM_BAD, PM_BAD, PM_UD
+.byte PM_UR, PM_RL,  PM_RL,  PM_DRL, PM_RL,  PM_UL,  PM_BAD, PM_BAD, PM_UDR, PM_RL,  PM_RL,  PM_RL,  PM_URL, PM_RL,  PM_RL,  PM_UDRL, PM_RL,  PM_RL,  PM_RL,  PM_RL,  PM_RL,  PM_UDRL, PM_RL,  PM_RL,  PM_URL, PM_RL,  PM_RL,  PM_RL,  PM_UDL, PM_BAD, PM_BAD, PM_UR,  PM_RL,  PM_DRL,  PM_RL,  PM_RL,  PM_UL
+.byte PM_BAD,PM_BAD, PM_BAD, PM_UD,  PM_BAD, PM_BAD, PM_BAD, PM_BAD, PM_UD,  PM_BAD, PM_BAD, PM_BAD, PM_BAD, PM_BAD, PM_BAD, PM_UD,   PM_BAD, PM_BAD, PM_BAD, PM_BAD, PM_BAD, PM_UD,   PM_BAD, PM_BAD, PM_BAD, PM_BAD, PM_BAD, PM_BAD, PM_UD,  PM_BAD, PM_BAD, PM_BAD, PM_BAD, PM_UD,  PM_BAD, PM_BAD, PM_BAD
+.byte PM_DR, PM_RL,  PM_RL,  PM_URL, PM_RL,  PM_DRL, PM_RL,  PM_RL,  PM_UDRL,PM_RL,  PM_RL,  PM_RL,  PM_DL,  PM_BAD, PM_BAD, PM_UDR,  PM_RL,  PM_RL,  PM_RL,  PM_RL,  PM_RL,  PM_UDL,  PM_BAD, PM_BAD, PM_DR,  PM_RL,  PM_RL,  PM_RL,  PM_UDRL,PM_RL,  PM_RL,  PM_DRL, PM_RL,  PM_URL, PM_RL,  PM_RL,  PM_DL
+.byte PM_UD, PM_BAD, PM_BAD, PM_BAD, PM_BAD, PM_UD,  PM_BAD, PM_BAD, PM_UD,  PM_BAD, PM_BAD, PM_BAD, PM_UD,  PM_BAD, PM_BAD, PM_UD,   PM_BAD, PM_BAD, PM_GUD, PM_BAD, PM_BAD, PM_UD,   PM_BAD, PM_BAD, PM_UD,  PM_BAD, PM_BAD, PM_BAD, PM_UD,  PM_BAD, PM_BAD, PM_UD,  PM_BAD, PM_BAD, PM_BAD, PM_BAD, PM_UD
+.byte PM_UR, PM_RL,  PM_RL,  PM_DRL, PM_RL,  PM_UL,  PM_BAD, PM_BAD, PM_UDR, PM_RL,  PM_RL,  PM_RL,  PM_URL, PM_RL,  PM_RL,  PM_UDL,  PM_BAD, PM_BAD, PM_GU, PM_BAD, PM_BAD, PM_UDR,  PM_RL,  PM_RL,  PM_URL, PM_RL,  PM_RL,  PM_RL,  PM_UDL, PM_BAD, PM_BAD, PM_UR,  PM_RL,  PM_DRL, PM_RL,  PM_RL,  PM_UL
+.byte PM_BAD,PM_BAD, PM_BAD, PM_UD,  PM_BAD, PM_BAD, PM_BAD, PM_BAD, PM_UD,  PM_BAD, PM_BAD, PM_BAD, PM_BAD, PM_BAD, PM_BAD, PM_UD,   PM_BAD, PM_BAD, PM_BAD, PM_BAD, PM_BAD, PM_UD,   PM_BAD, PM_BAD, PM_BAD, PM_BAD, PM_BAD, PM_BAD, PM_UD,  PM_BAD, PM_BAD, PM_BAD, PM_BAD, PM_UD,  PM_BAD, PM_BAD, PM_BAD
+.byte PM_DR, PM_RL,  PM_RL,  PM_URL, PM_RL,  PM_DRL, PM_RL,  PM_RL,  PM_UDRL,PM_RL,  PM_RL,  PM_RL,  PM_DL,  PM_BAD, PM_BAD, PM_UDR,  PM_RL,  PM_RL,  PM_RL,  PM_RL,  PM_RL,  PM_UDL,  PM_BAD, PM_BAD, PM_DR,  PM_RL,  PM_RL,  PM_RL,  PM_UDRL,PM_RL,  PM_RL,  PM_DRL, PM_RL,  PM_URL, PM_RL,  PM_RL,  PM_DL
+.byte PM_UD, PM_BAD, PM_BAD, PM_BAD, PM_BAD, PM_UD,  PM_BAD, PM_BAD, PM_UD,  PM_BAD, PM_BAD, PM_BAD, PM_UD,  PM_BAD, PM_BAD, PM_UD,   PM_BAD, PM_BAD, PM_BAD, PM_BAD, PM_BAD, PM_UD,   PM_BAD, PM_BAD, PM_UD,  PM_BAD, PM_BAD, PM_BAD, PM_UD,  PM_BAD, PM_BAD, PM_UD,  PM_BAD, PM_BAD, PM_BAD, PM_BAD, PM_UD
+.byte PM_UR, PM_RL,  PM_RL,  PM_DRL, PM_RL,  PM_UL,  PM_BAD, PM_BAD, PM_UDR, PM_RL,  PM_RL,  PM_RL,  PM_URL, PM_RL,  PM_RL,  PM_UDRL, PM_RL,  PM_RL,  PM_RL,  PM_RL,  PM_RL,  PM_UDRL, PM_RL,  PM_RL,  PM_URL, PM_RL,  PM_RL,  PM_RL,  PM_UDL, PM_BAD, PM_BAD, PM_UR,  PM_RL,  PM_DRL,  PM_RL,  PM_RL,  PM_UL
+.byte PM_BAD,PM_BAD, PM_BAD, PM_UD,  PM_BAD, PM_BAD, PM_BAD, PM_BAD, PM_UD,  PM_BAD, PM_BAD, PM_BAD, PM_BAD, PM_BAD, PM_BAD, PM_UD,   PM_BAD, PM_BAD, PM_BAD, PM_BAD, PM_BAD, PM_UD,   PM_BAD, PM_BAD, PM_BAD, PM_BAD, PM_BAD, PM_BAD, PM_UD,  PM_BAD, PM_BAD, PM_BAD, PM_BAD, PM_UD,  PM_BAD, PM_BAD, PM_BAD
+.byte PM_DR, PM_RL,  PM_RL,  PM_URL, PM_RL, PM_DRL,  PM_RL,  PM_RL,  PM_UDRL,PM_RL,  PM_RL,  PM_RL,  PM_DL,  PM_BAD, PM_BAD, PM_UDR,  PM_RL,  PM_RL,  PM_RL,  PM_RL,  PM_RL,  PM_UDL,  PM_BAD, PM_BAD, PM_DR,  PM_RL,  PM_RL,  PM_RL,  PM_UDRL,PM_RL,  PM_RL,  PM_DRL, PM_RL,  PM_URL, PM_RL,  PM_RL,  PM_DL
+.byte PM_UD, PM_BAD, PM_BAD, PM_BAD, PM_BAD, PM_UD,  PM_BAD, PM_BAD, PM_UD,  PM_BAD, PM_BAD, PM_BAD, PM_UD,  PM_BAD, PM_BAD, PM_UD,   PM_BAD, PM_BAD, PM_BAD, PM_BAD, PM_BAD, PM_UD,   PM_BAD, PM_BAD, PM_UD,  PM_BAD, PM_BAD, PM_BAD, PM_UD,  PM_BAD, PM_BAD, PM_UD,  PM_BAD, PM_BAD, PM_BAD, PM_BAD, PM_UD
+.byte PM_UR, PM_RL,  PM_RL,  PM_RL,  PM_RL,  PM_UL,  PM_BAD, PM_BAD, PM_UR,  PM_RL,  PM_RL,  PM_RL,  PM_URL, PM_RL,  PM_RL,  PM_URL,  PM_RL,  PM_RL,  PM_DRL, PM_RL,  PM_RL,  PM_URL,  PM_RL,  PM_RL,  PM_URL, PM_RL,  PM_RL,  PM_RL,  PM_UL,  PM_BAD, PM_BAD, PM_UR,  PM_RL,  PM_RL,  PM_RL,  PM_RL,  PM_UL
+
+
 ; ====================================================================
 actor_move:
 ; ====================================================================
@@ -681,95 +844,21 @@ actor_move_loop:
 actor_move_end:
 	rts
 
-; ====================================================================
-joystick_handler:
-;
-; This routine is called when a direction is changed by the player
-; it will set the player_direction to the new direction value which
-; is used in the irq routine for movement and if left or right, will 
-; switch to the appropriate face / animation
-; ====================================================================
 
-	; we can only change directions if the player is at a pixel boundary
-	ldy #$00
-	lda actor_bytes_moved,y
-	bne joystick_end
-
-	lda joy_cache
-	and #$08
-	bne +
-
-	; move right
-	lda #DIR_RIGHT
-	ldy #$00
-	sta actor_directions, y
-	jsr select_player_r_anim
-	jmp joystick_end
-
-+	lda joy_cache
-	and #$04
-	bne +
-
-	; move left
-	lda #DIR_LEFT
-	ldy #$00
-	sta actor_directions, y
-	jsr select_player_l_anim
-	jmp joystick_end
-
-+	lda joy_cache
-	and #$01
-	bne +
-
-	; move up
-	lda #DIR_UP
-	ldy #$00
-	sta actor_directions, y
-	jmp joystick_end
-
-+	lda joy_cache
-	and #$02
-	bne joystick_end
-
-	; move down
-	lda #DIR_DOWN
-	ldy #$00
-	sta actor_directions, y
-
-joystick_end:
-	rts
 
 ; ====================================================================
 ; Sprite movement routines
 ; These routines are sprite agnostic.  Setting 'current_actor' to the
 ; appropriate sprite #, we can move any of the characters
-; The routines check the bounds around the sprite's
-; character screen matrix location for walls
+; The routines also check if movement is allowed based on the 
+; position matrix (maze)
 ; ====================================================================
-
-; ====================================================================
-ghost_change_dir:
-; ====================================================================
-	lda current_actor
-	beq ghost_change_dir_done		; if current actor is player, exit
-	tay
--	lda $a2							; read jiffy timer
-	and #%00000011					; just the last 2 bits (0-3)
-	clc
-	adc #$01						; add 1 (0 is stopped)
-	cmp actor_directions,Y			; compare it to the current direction
-	beq -							; if its the same, do it again
-	sta actor_directions,y			; store the new direction
-
-ghost_change_dir_done:
-	rts	
 
 ; ====================================================================
 check_if_player_eat_dot:
 ; ====================================================================
 	; if player, check if over pellet
 	ldy current_actor
-	cpy #$00
 	beq +
 	jmp ciped_done
 
@@ -836,6 +925,7 @@ check_quad_for_dot:
 	sta (screen_addr_lo),y
 	lda #$01
 	sta dot_eaten
+	jsr inc_player_score
 	jmp dot_check_end
 +	cmp #$45
 	bne +
@@ -843,6 +933,7 @@ check_quad_for_dot:
 	sta (screen_addr_lo),y
 	lda #$01
 	sta dot_eaten
+	jsr inc_player_score
 	jmp dot_check_end
 +	cmp #$6c
 	bne +
@@ -873,10 +964,171 @@ check_quad_for_dot:
 	sta dot_eaten
 	jmp dot_check_end
 dot_check_end:
+	jsr update_score
 	rts
 
 dot_eaten:
 	.byte $00
+
+; ====================================================================
+inc_player_score:
+; ====================================================================
+	lda <player_score
+	clc
+	adc #$01
+	sta <player_score
+	lda >player_score
+	adc #$00
+	sta >player_score
+	rts
+
+; ====================================================================
+update_score:
+; Routine to convert a 16-bit binary number to ASCII and display it
+; ====================================================================
+	pha
+	txa
+	pha
+	tya
+	pha
+
+	ldx <player_score
+	ldy >player_score
+
+	STX div_lo
+	STY div_hi
+
+	LDY #$04
+-   JSR div10
+	ORA #$30
+	STA $0788,Y
+	DEY
+	BPL -
+
+	pla
+	tay
+	pla
+	tax
+	pla
+	RTS
+
+
+div10:
+        LDX #$11
+        LDA #$00
+        CLC
+loop    ROL
+        CMP #$0A
+        BCC skip
+        SBC #$0A
+skip    ROL div_lo
+        ROL div_hi
+        DEX
+        BNE loop
+        RTS
+
+div_lo:
+	.byte $00
+div_hi:
+	.byte $00
+
+; ====================================================================
+ghost_change_dir:
+; ====================================================================
+	lda current_actor
+	beq ghost_change_dir_done		; if current actor is player, exit
+	tay
+	jmp ghost_change_random
+ 
+	jsr check_position_matrix		; which directions are available?
+	sta gc_temp						; save it
+
+	lda current_actor
+	tay
+
+	lda current_actor       		; Load sprite number
+	asl                   			; Multiply current_actor by 2 to get the correct index for X and Y
+	tax                   			; Transfer the result to X
+	lda BASE_SPRITE_Y, X  			; Load sprite Y-coordinate
+
+	cmp SPRITE_0_Y_POSITION
+	bcc ghost_change_try_down		; if less than pacman, go down
+
+ghost_change_try_up:
+	lda gc_temp
+	and #$01
+	beq ghost_change_try_down
+
+	lda #DIR_UP
+	sta actor_directions,Y
+	jmp ghost_change_dir_done
+
+ghost_change_try_down:
+
+	lda gc_temp
+	and #$02
+	beq ghost_change_try_right
+
+	lda #DIR_DOWN
+	sta actor_directions,Y
+	jmp ghost_change_dir_done
+
+ghost_change_try_right:
+
+	lda gc_temp
+	and #$04
+	beq ghost_change_try_left
+
+	lda #DIR_RIGHT
+	sta actor_directions,Y
+	jmp ghost_change_dir_done
+
+ghost_change_try_left:
+
+	lda gc_temp
+	and #$08
+	beq ghost_change_random
+
+	lda #DIR_LEFT
+	sta actor_directions,Y
+	jmp ghost_change_dir_done
+
+ghost_change_random:
+-	lda $a2							; read jiffy timer
+	and #%00000011					; just the last 2 bits (0-3)
+	tax
+	lda ghost_chg_transform, x		; get the new direction
+	cmp actor_directions,Y			; compare it to the current direction
+	beq -							; if its the same, do it again
+	sta actor_directions,y			; store the new direction
+
+ghost_change_dir_done:
+	rts	
+ghost_chg_transform:
+	.byte 1,2,4,8
+
+gc_temp:
+	.byte $00
+gc_player_y:
+	.byte $00
+
+; ====================================================================
+check_position_matrix:
+; ====================================================================
+	lda current_actor        		; Load sprite number
+	beq +
+	asl                   			; Multiply current_actor by 2 to get the correct index
++	tay                   			; Transfer the result to Y
+
+	lda actor_position_matrix, y	; get lo and hi byte of current position matrix
+	sta $C4
+	iny
+	lda actor_position_matrix, y
+	sta $c5
+
+	ldy #$00
+	lda ($c4), y					; get the actual value in the position matrix
+	rts
 
 ; ====================================================================
 sprite_move_right:
@@ -887,43 +1139,48 @@ sprite_move_right:
 	lda actor_bytes_moved,y
 	bne pmr_move
 
-	; calculate the sprite screen address
-	jsr sprite_to_screen_address
+	; check position matrix
+	jsr check_position_matrix
 
-	; if player, check if over pellet
-	jsr check_if_player_eat_dot
+	; check the right movement bit
+	and #%00000100
+	bne pmr_ok2move
 
-	; we are looking one space to the right
-	; so add 1 to the location
-    lda screen_addr_lo 
-    clc 
-    adc #$01
-    sta screen_addr_lo
-    lda screen_addr_hi
-    adc #$00
-    sta screen_addr_hi
+	; nope, can not move that way
+	jsr ghost_change_dir			; if ghost, change direction
 
-	; barrier check	
-	ldx #$02						; loop twice to check both above and below 8bit quad
-	ldy #$00
-pmr_l0:
-	jsr barrier_check
-	beq +
-	jsr ghost_change_dir
-	jmp pmr_done					; nope - exit
-+	dex
-	beq pmr_ok2move
-	ldy #$28
-	jmp pmr_l0
+	ldy current_actor				; if player, restore prev direction
+	bne +
+	lda player_current_direction
+	sta actor_directions,y
++	jmp pmr_done					
 
 pmr_ok2move:
-	ldy current_actor
+	lda current_actor
+	beq +
+	asl                   			; Multiply current_actor by 2 to get the correct index
++	tay                   			; Transfer the result to Y
+	lda actor_position_matrix, y	; add one to the actors position matrix address
+	clc
+	adc #$01
+	sta actor_position_matrix, y
+	iny
+	lda actor_position_matrix, y
+	adc #$00
+	sta actor_position_matrix, y
+	
+	ldy current_actor				; reset the byte movement counter
 	lda #$08
 	sta actor_bytes_moved,y
 
+	ldy current_actor				; if player, check if dot eaten
+	bne pmr_move
+	jsr sprite_to_screen_address
+	jsr check_if_player_eat_dot
+
 pmr_move:
 	; move the sprite
-	lda current_actor        	; Load sprite number
+	lda current_actor       ; Load sprite number
 	asl                   	; Multiply current_actor by 2 to get the correct index for X and Y
 	tay                   	; Transfer the result to X
 	lda BASE_SPRITE_X, Y  	; Load sprite X-coordinate
@@ -952,39 +1209,46 @@ sprite_move_left:
 	lda actor_bytes_moved,y
 	bne pml_move
 
-	; calculate the sprite screen address
-	jsr sprite_to_screen_address
+	; check position matrix
+	jsr check_position_matrix
 
-	; if player, check if over pellet
-	jsr check_if_player_eat_dot
+	; check the right movement bit
+	lsr								; move the left bit to the carry flag
+	lsr
+	lsr
+	lsr
+	bcs pml_ok2move
 
-	; we are looking one spaces to the left
-	; so subtract 1 to the address
-	lda screen_addr_lo
-	sec
-	sbc #$01
-	sta screen_addr_lo
-	lda screen_addr_hi
-    sbc #$00
-    sta screen_addr_hi
-
-	; barrier check	
-	ldx #$02						; loop twice to check both above and below 8bit quad
-	ldy #$00
-pml_l0:
-	jsr barrier_check
-	beq +
-	jsr ghost_change_dir
-	jmp pml_done					; nope - exit
-+	dex
-	beq pml_ok2move
-	ldy #$28
-	jmp pml_l0
+	; nope, can not move that way
+	jsr ghost_change_dir			; if ghost, change direction
+	ldy current_actor				; if player, restore prev direction
+	bne +
+	lda player_current_direction
+	sta actor_directions,y
++	jmp pmr_done	
 
 pml_ok2move:
-	ldy current_actor
+	lda current_actor
+	beq +
+	asl                   			; Multiply current_actor by 2 to get the correct index
++	tay                   			; Transfer the result to Y
+	lda actor_position_matrix, y	; subtract one to the actors position matrix address
+	sec
+	sbc #$01
+	sta actor_position_matrix, y
+	iny
+	lda actor_position_matrix, y
+	sbc #$00
+	sta actor_position_matrix, y
+
+	ldy current_actor				; reset movement counter
 	lda #$08
 	sta actor_bytes_moved,Y
+
+	ldy current_actor				; if player, check if dot eaten
+	bne pml_move
+	jsr sprite_to_screen_address
+	jsr check_if_player_eat_dot
 
 pml_move:
 	; move the sprite
@@ -1017,40 +1281,54 @@ sprite_move_up:
 	lda actor_bytes_moved,y
 	bne pmu_move
 
-	; calculate the sprite screen address
-	jsr sprite_to_screen_address
+	; check position matrix
+	jsr check_position_matrix
+	tax								; stash it
 
-	; if player, check if over pellet
-	jsr check_if_player_eat_dot
+	; check the up movement bit
+	lsr								; move the left bit to the carry flag
+	bcs pmu_ok2move
 
-	; we are looking one space up, one to the left
-	; so subtract 41 from the address
-	lda screen_addr_lo
-	sec
-	sbc #$29
-	sta screen_addr_lo
-	lda screen_addr_hi
-	sbc #$00
-	sta screen_addr_hi
-
-	; barrier check	
-	ldx #$02						; loop twice to check both above and below 8bit quad
-	ldy #$00
-pmu_l0:
-	jsr barrier_check
-	beq +
-	jsr ghost_change_dir
-	jmp pmu_done					; nope - exit
-+	dex
-	beq pmu_ok2move
-	ldy #$01
-	jmp pmu_l0
-	rts	
+	; nope, can not move that way
+pmu_nope:
+	jsr ghost_change_dir			; if ghost, change direction
+	ldy current_actor				; if player, restore prev direction
+	bne +
+	lda player_current_direction
+	sta actor_directions,y
++	jsr ghost_change_dir 			; if ghost, change direction
+	jmp pmr_done	
 
 pmu_ok2move:
-	ldy current_actor
+	ldy current_actor				
+	bne pmu_ok2move2				; if current actor is a ghost, skip ahead
+	txa								; current actor is player
+	asl								; check the ghost only bit
+	bcc pmu_ok2move2				; if carry is clear, then its a normal position
+	jmp pmu_nope					; else its a ghost position, player cant move
+
+pmu_ok2move2:
+	lda current_actor
+	beq +
+	asl                   			; Multiply current_actor by 2 to get the correct index
++	tay                   			; Transfer the result to Y
+	lda actor_position_matrix, y	; subtract 37 to the actors position matrix address
+	sec
+	sbc #$25
+	sta actor_position_matrix, y
+	iny
+	lda actor_position_matrix, y
+	sbc #$00
+	sta actor_position_matrix, y
+
+	ldy current_actor				; reset movement counter
 	lda #$0a
 	sta actor_bytes_moved,Y
+
+	ldy current_actor				; if player, check if dot eaten
+	bne pmu_move
+	jsr sprite_to_screen_address
+	jsr check_if_player_eat_dot
 
 pmu_move:
 	; move the sprite
@@ -1080,40 +1358,44 @@ sprite_move_down:
 	lda actor_bytes_moved,y
 	bne pmd_move
 
-	; calculate the sprite screen address
-	jsr sprite_to_screen_address
+	; check position matrix
+	jsr check_position_matrix
 
-	; if player, check if over pellet
-	jsr check_if_player_eat_dot
+	; check the up movement bit
+	lsr								; move the left bit to the carry flag
+	lsr
+	bcs pmd_ok2move
 
-	; we are looking one space down, one to the left
-	; so add 39 to the address
-	lda screen_addr_lo
-	clc
-	adc #$4f ;27
-	sta screen_addr_lo
-	lda screen_addr_hi
-	adc #$00
-	sta screen_addr_hi
-
-	; barrier check	
-	ldx #$02						; loop twice to check both above and below 8bit quad
-	ldy #$00
-pmd_l0:
-	jsr barrier_check
-	beq +
-	jsr ghost_change_dir
-	jmp pmd_done					; nope - exit
-+	dex
-	beq pmd_ok2move
-	ldy #$01
-	jmp pmd_l0
-	rts	
+	; nope, can not move that way
+	jsr ghost_change_dir			; if ghost, change direction
+	ldy current_actor				; if player, restore prev direction
+	bne +
+	lda player_current_direction
+	sta actor_directions,y
++	jmp pmr_done	
 
 pmd_ok2move:
-	ldy current_actor
+	lda current_actor
+	beq +
+	asl                   			; Multiply current_actor by 2 to get the correct index
++	tay                   			; Transfer the result to Y
+	lda actor_position_matrix, y	; add 37 to the actors position matrix address
+	clc
+	adc #$25
+	sta actor_position_matrix, y
+	iny
+	lda actor_position_matrix, y
+	adc #$00
+	sta actor_position_matrix, y
+
+	ldy current_actor				; reset movement counter
 	lda #$0a
 	sta actor_bytes_moved,y
+
+	ldy current_actor				; if player, check if dot eaten
+	bne pmd_move
+	jsr sprite_to_screen_address
+	jsr check_if_player_eat_dot
 
 pmd_move:
 	; move the sprite
@@ -1167,49 +1449,6 @@ clear_xmsb:
 
 clear_xmsb_masks:
 	.byte $FE, $FD, $FB, $F7, $EF, $DF, $BF, $7F
-
-; ====================================================================
-barrier_check:
-; ====================================================================
-
-	; look at address.  if A=0 if we can move there
-	lda (screen_addr_lo),y
-	cmp #$20
-	beq barrier_check_ok
-	cmp #$45
-	beq barrier_check_ok
-	cmp #$52
-	beq barrier_check_ok
-
-	cmp #$6C
-	beq barrier_check_ok
-	cmp #$7B
-	beq barrier_check_ok
-	cmp #$7c
-	beq barrier_check_ok
-	cmp #$7e
-	beq barrier_check_ok
-
-	cmp #$6f
-	beq barrier_check_ok
-
-	cmp #$77
-	bne barrier_check_not_ok
-	lda actor_directions, y
-	cmp #DIR_RIGHT
-	bcs barrier_check_ok
-	jmp barrier_check_not_ok
-	
-	;cmp #$D1
-	;beq barrier_check_ok
-
-barrier_check_not_ok:
-	rts
-
-
-barrier_check_ok:
-	lda #$00
-	rts
 
 ; ====================================================================
 select_player_r_anim:
