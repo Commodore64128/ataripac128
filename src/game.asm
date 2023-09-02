@@ -1124,8 +1124,8 @@ ghost_change_random:
 	and #%00000011					; just the last 2 bits (0-3)
 	tax
 	lda ghost_chg_transform, x		; get the new direction
-	;cmp actor_directions,Y			; compare it to the current direction
-	;beq -							; if its the same, do it again
+	cmp actor_directions,Y			; compare it to the current direction
+	beq -							; if its the same, do it again
 	sta actor_directions,y			; store the new direction
 
 ghost_change_dir_done:
