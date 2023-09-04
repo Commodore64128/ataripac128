@@ -150,12 +150,19 @@ delay:
 	.byte $00, $00
 delay_anim:
 	.byte $00
+delay_enemy_mode:
+	.byte $00, $00
+delay_enemy_move:
+	.byte $00, $00
+delay_enemy_flash:
+	.byte $00, $00
 collision_flg:
 	.byte $00
 player_x:
 	.byte $00, $b0
 player_y:
 	.byte $b0
+
 
 actor_directions:
 	.byte DIR_STOPPED, DIR_UP, DIR_UP, DIR_UP, DIR_UP
@@ -192,6 +199,9 @@ player_lives:
 
 player_score:
 	.word $0000
+
+enemy_mode:
+	.byte $00
 
 ; ====================================================================
 ; new game
@@ -275,6 +285,9 @@ reset:
 
 	lda #$00
 	sta current_actor
+	sta enemy_mode
+	sta delay_enemy_mode
+	sta delay_enemy_mode+1
 
 	jsr play_reset_sound
 
@@ -337,7 +350,20 @@ irq_handler:
 	;lda #$00
 	;sta dot_eaten
 
-+	
+	lda delay_enemy_flash		; flash the enemies (for authentic look)
+	inc delay_enemy_flash
+	cmp #$02
+	bne +
+	lda #%00000001            	; enable sprites 0,1,2,3,4
+  	sta VIC_SPRITE_ENBL
+	lda #$00
+	sta delay_enemy_flash
+	jmp irq_check_state
++	lda #%00011111          	; disable sprites 0,1,2,3,4
+  	sta VIC_SPRITE_ENBL
+	jmp irq_check_state
+
+irq_check_state:
 	; takes different actions depending on game state
 	lda game_state
 	cmp #GAME_STATE_DEMO
@@ -367,7 +393,25 @@ irq_check_state3:
 	jsr anim_actor
 	lda #$00
 	sta delay_anim
-	jmp irq_end
+
+	lda delay_enemy_mode			; countdown enemy mode change
+	clc
+	adc #$01
+	sta delay_enemy_mode
+	lda delay_enemy_mode+1
+	adc #$00
+	sta delay_enemy_mode+1
+
+	lda delay_enemy_mode
+	cmp #$2c
+	bne +
+	lda delay_enemy_mode+1
+	cmp #$00
+	bne +
+	lda #$01
+	sta enemy_mode
++	jmp irq_end
+
 
 irq_check_state4:
 	cmp #GAME_STATE_DYING
@@ -812,11 +856,47 @@ actor_move:
 	; loops through all four actors
 	ldy current_actor
 	beq actor_do_move
+	jmp actor_check_intersection
+
+	; if ghost, respect delay
+	lda actor_bytes_moved,y
+	bne actor_check_intersection
+
+	lda delay_enemy_move			; countdown enemy mode change
+	clc
+	adc #$01
+	sta delay_enemy_move
+	lda delay_enemy_move+1
+	adc #$00
+	sta delay_enemy_move+1
+
+	lda delay_enemy_move
+	cmp #$0a
+	bne actor_move_abort
+	lda delay_enemy_move+1
+	cmp #$00
+	bne actor_move_abort
+	jmp actor_move_reset_delay
+
+actor_move_abort:
+	jmp actor_move_loop
+actor_move_reset_delay:
+	lda #$00
+	sta delay_enemy_move
+	sta delay_enemy_move+1
 
 	; if ghost, check if at an intersection
+actor_check_intersection:
 	lda actor_bytes_moved,y
 	bne actor_do_move
 
+	dec actor_move_ctr
+	lda actor_move_ctr
+	cmp #$00
+	bne actor_do_move
+	lda #$03
+	sta actor_move_ctr
+	
 	; at intersection - find best path
 	jsr ghost_change_dir
 
@@ -825,26 +905,26 @@ actor_do_move:
 
 	; move the sprite
 	lda actor_directions, y
-	cmp #DIR_UP
-	bne +
+	and #DIR_UP
+	beq +
 	jsr sprite_move_up
 	jmp actor_move_loop
 
 +	lda actor_directions, y
-	cmp #DIR_DOWN
-	bne +
+	and #DIR_DOWN
+	beq +
 	jsr sprite_move_down
 	jmp actor_move_loop
 
 +	lda actor_directions, y
-	cmp #DIR_RIGHT
-	bne +
+	and #DIR_RIGHT
+	beq +
 	jsr sprite_move_right
 	jmp actor_move_loop
 
 +	lda actor_directions, y
-	cmp #DIR_LEFT
-	bne actor_move_loop
+	and #DIR_LEFT
+	beq actor_move_loop
 	jsr sprite_move_left
 
 actor_move_loop:
@@ -860,6 +940,8 @@ actor_move_loop:
 actor_move_end:
 	rts
 
+actor_move_ctr:
+	.byte $03
 
 
 ; ====================================================================
@@ -1052,71 +1134,72 @@ div_hi:
 ghost_change_dir:
 ; ====================================================================
 	lda current_actor
-	beq ghost_change_dir_done		; if current actor is player, exit
-	tay
-	;jmp ghost_change_random
+	bne +							; if current actor is player, exit
+	jmp ghost_change_dir_done
+
++	tay
  
+	lda #$00
+	sta gc_temp+1
+
 	jsr check_position_matrix		; which directions are available?
 	sta gc_temp						; save it
 
-	;lda current_actor
-	;tay
-
 	lda current_actor       		; Load sprite number
-	tay                   			; Transfer the result to X
-	lda actor_rows, y	  			; Load sprite Y-coordinate
-	beq ghost_change_random
-	ldx #$00
+	tay                   			; represents current ghost
+	ldx #$00						; represent pacman
+
+	lda enemy_mode					; are we in chase mode?
+	beq +							; if so skip ahead
+	
+	lda actor_rows, y				; replace scatter target
+	sta gc_rows, y					; with pacman target
+	lda actor_cols, y
+	sta gc_cols, y
+
+	; determine if ghost is above target
++	lda gc_rows, y	  				; Load target row
 	cmp actor_rows, x
-	bcc ghost_change_try_down		; if less than pacman, go down
-	beq ghost_change_rl_check		; if same row, try left or right
+	beq ghost_change_next1			; ghost row = target row (skip ahead)
+	bcs ghost_change_row_below		; ghost row < target row
+									; ghost row > target row
+ghost_change_row_above:
+	lda gc_temp+1
+	ora #$02
+	sta gc_temp+1					; turn on the DOWN bit
+	jmp ghost_change_next1
 
-ghost_change_try_up:
-	lda gc_temp
-	and #$01
-	beq ghost_change_rl_check
+ghost_change_row_below:
+	lda gc_temp+1
+	ora #$01
+	sta gc_temp+1					; turn on the UP bit
 
-	lda #DIR_UP
-	sta actor_directions,Y
-	jmp ghost_change_dir_done
-
-ghost_change_try_down:
-
-	lda gc_temp
-	and #$02
-	beq ghost_change_rl_check
-
-	lda #DIR_DOWN
-	sta actor_directions,Y
-	jmp ghost_change_dir_done
-
-ghost_change_rl_check:
-	lda current_actor       		; Load sprite number
-	tay                   			; Transfer the result to X
-	lda actor_cols, y	  			; Load sprite Y-coordinate
-	beq ghost_change_random
-	ldx #$00
+ghost_change_next1:
+	; determine if ghost is left or right of target
+	lda gc_cols, Y					; Load target col
 	cmp actor_cols, x
-	bcs ghost_change_try_left		; if less than pacman, go down
+	beq ghost_change_next2			; ghost col = target col (skip ahead)
+	bcs ghost_change_col_left		; ghost col > target col
+									; ghost col < target col
+ghost_change_col_right:
+	lda gc_temp+1
+	ora #$04
+	sta gc_temp+1					; turn on the RIGHT bit
+	jmp ghost_change_next2
 
-ghost_change_try_right:
+ghost_change_col_left:
+	lda gc_temp+1
+	ora #$08
+	sta gc_temp+1					; turn on the LEFT bit
 
+ghost_change_next2:
 	lda gc_temp
-	and #$04
-	beq ghost_change_try_left
+	and gc_temp+1
+	sta gc_temp+1					; AND the possible directions with the desired directions
+	beq ghost_change_random			; if there are no matches, pick a random direction
 
-	lda #DIR_RIGHT
-	sta actor_directions,Y
-	jmp ghost_change_dir_done
-
-ghost_change_try_left:
-
-	lda gc_temp
-	and #$08
-	beq ghost_change_random
-
-	lda #DIR_LEFT
-	sta actor_directions,Y
+	lda gc_temp+1
+	sta actor_directions, Y			; otherwise, use the selected direction
 	jmp ghost_change_dir_done
 
 ghost_change_random:
@@ -1129,14 +1212,31 @@ ghost_change_random:
 	sta actor_directions,y			; store the new direction
 
 ghost_change_dir_done:
+
+	lda #$00						; restore scatter mode values
+	sta gc_rows+1
+	sta gc_rows+4
+	sta gc_cols+1
+	sta gc_cols+3
+	lda #$12
+	sta gc_rows+2
+	sta gc_rows+3
+	lda #$27
+	sta gc_cols+2
+	sta gc_cols+4
 	rts	
+
 ghost_chg_transform:
 	.byte 1,2,4,8
 
 gc_temp:
-	.byte $00
-gc_player_y:
-	.byte $00
+	.byte $00, $00
+gc_rows:
+	.byte $00, $00, $12, $12, $00
+gc_cols:
+	.byte $00, $00, $27, $00, $27
+
+
 
 ; ====================================================================
 check_position_matrix:
