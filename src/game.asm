@@ -165,7 +165,7 @@ player_y:
 
 
 actor_directions:
-	.byte DIR_STOPPED, DIR_UP, DIR_UP, DIR_UP, DIR_UP
+	.byte DIR_STOPPED, DIR_RIGHT, DIR_RIGHT, DIR_RIGHT, DIR_RIGHT
 
 actor_bytes_moved:
 	.byte $00, $00, $00, $00, $00 	;tracks how many bytes the sprite has moved
@@ -213,6 +213,10 @@ new_game:
 	lda #$03
 	sta player_lives
 
+	lda #$00
+	sta player_score
+	sta player_score+1
+
 	jsr screen_init
 	jsr reset
 
@@ -258,7 +262,7 @@ reset:
 
 	lda #DIR_STOPPED
 	sta actor_directions
-	lda #DIR_UP
+	lda #DIR_RIGHT
 	sta actor_directions+1
 	sta actor_directions+2
 	sta actor_directions+3
@@ -293,6 +297,8 @@ reset:
 
 	lda #GAME_STATE_RUNNING
 	sta game_state
+
+	lda VIC_SPR_SPR_COL_REG
 	rts
 
 ; ====================================================================
@@ -350,7 +356,8 @@ irq_handler:
 	;lda #$00
 	;sta dot_eaten
 
-	lda delay_enemy_flash		; flash the enemies (for authentic look)
+	; flash the enemies (for authentic look)
+	lda delay_enemy_flash		
 	inc delay_enemy_flash
 	cmp #$02
 	bne +
@@ -361,10 +368,9 @@ irq_handler:
 	jmp irq_check_state
 +	lda #%00011111          	; disable sprites 0,1,2,3,4
   	sta VIC_SPRITE_ENBL
-	jmp irq_check_state
 
-irq_check_state:
 	; takes different actions depending on game state
+irq_check_state:
 	lda game_state
 	cmp #GAME_STATE_DEMO
 	bne irq_check_state1
@@ -1093,15 +1099,15 @@ update_score:
 	ldx <player_score
 	ldy >player_score
 
-	STX div_lo
-	STY div_hi
+	stx div_lo
+	sty div_hi
 
-	LDY #$04
--   JSR div10
-	ORA #$30
-	STA $0788,Y
-	DEY
-	BPL -
+	ldy #$04
+-   jsr div10
+	ora #$30
+	sta $0788,Y
+	dey
+	bpl -
 
 	pla
 	tay
@@ -1857,8 +1863,7 @@ spr2scr_done_shift_msb:
 
 	; equivalent to " result = row * 40;"
 	lda row
-	ldy #40   						; Number of columns per row
-	jsr mult_8b_by_8b
+	jsr mult_by_40
 	
 	ldx #$00
 	stx screen_addr_hi
@@ -1880,7 +1885,7 @@ spr2scr_done_shift_msb:
 	adc screen_addr_hi						
 	sta screen_addr_hi
 
-	lda result
+	lda result+1
 	clc
 	adc screen_addr_hi
 	sta screen_addr_hi
@@ -1892,44 +1897,53 @@ spr2scr_done_shift_msb:
 
 	rts
 
+
+
 	
 ; ====================================================================
-mult_8b_by_8b:
-num1Hi = $70
+mult_by_40:
 ; ====================================================================
-	sta num1
-	sty num2
+	tay
 	lda #$00
-	tay
-	sty num1Hi  		; remove this line for 16*8=16bit multiply
-	beq mult_enterLoop
-
-mult_doAdd:
-	clc
-	adc num1
-	tax
+	sta temp_mult
+	sta temp_mult+1
+	sta temp_mult+2
+	sta temp_mult+3
+	sta temp_mult+4
 	tya
-	adc num1Hi
-	tay
-	txa
 
-mult_loop:
-	asl num1
-	rol num1Hi
-mult_enterLoop:  		; accumulating multiply entry point (enter with .A=lo, .Y=hi)
-	lsr num2
-	bcs mult_doAdd
-	bne mult_loop
-	sta result+1
-	sty result
-    rts
+	cmp #7
+	bcc nocarry1
+	cmp #13
+	bcc add1
+	cmp #20
+	bcc add2
+	inc temp_mult+4
+add2:
+	inc temp_mult+4
+add1:
+	inc temp_mult+4
+nocarry1:
+	STA temp_mult+1
+	ASL
+	ASL
+	ASL
+	STA temp_mult+2
+	lda temp_mult+1
+	ASL
+	ASL
+	ASL
+	ASL
+	ASL
+	clc
+	ADC temp_mult+2
+	STA temp_mult+3
+	rts
 
-num1:
-	.byte $00			; 8 bit multiplication
-num2:
-	.byte $00
+temp_mult:
+	.byte $00, $00, $00
 result:
-	.byte $00, $00		; 16 bit result
+	.byte $00, $00
 
 ; ====================================================================
 delay_timer:
